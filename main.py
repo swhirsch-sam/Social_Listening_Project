@@ -24,10 +24,12 @@ def fetch_tiktok(brand):
         run_input = {
             "searchQueries": [brand],
             "resultsPerPage": config.APIFY_MAX_RESULTS,
-            "maxProfilesPerQuery": config.APIFY_MAX_RESULTS,
             "searchSection": "/video",
         }
-        run = client.actor("clockworks/tiktok-scraper").call(run_input=run_input)
+        run = client.actor("clockworks/tiktok-scraper").call(
+            run_input=run_input,
+            max_items=config.APIFY_MAX_RESULTS,
+        )
         for item in client.dataset(run["defaultDatasetId"]).iterate_items():
             text = item.get("text") or item.get("description") or item.get("title") or ""
             if text:
