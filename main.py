@@ -24,7 +24,7 @@ def fetch_tiktok(brand):
         run_input = {
             "searchQueries": [brand],
             "maxResultsPerQuery": config.APIFY_MAX_RESULTS,
-            "searchSection": "videos",
+            "searchSection": "/video",
         }
         run = client.actor("clockworks/tiktok-scraper").call(run_input=run_input)
         for item in client.dataset(run["defaultDatasetId"]).iterate_items():
