@@ -47,6 +47,12 @@ if submitted:
             st.markdown(f"### Overall Sentiment for **{brand_name}**")
             st.markdown(f"## {sentiment.upper()} ({confidence:.0%} confidence)")
             st.caption(f"Posts analyzed: {total}")
+
+            if results.get("warnings"):
+                with st.expander("Source warnings"):
+                    for w in results["warnings"]:
+                        st.warning(w)
+
             st.divider()
 
             summary = results["sentiment_summary"]
