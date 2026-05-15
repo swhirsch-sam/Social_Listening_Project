@@ -23,7 +23,8 @@ def fetch_tiktok(brand):
         # clockworks/tiktok-scraper supports keyword search
         run_input = {
             "searchQueries": [brand],
-            "maxResultsPerQuery": config.APIFY_MAX_RESULTS,
+            "resultsPerPage": config.APIFY_MAX_RESULTS,
+            "maxProfilesPerQuery": config.APIFY_MAX_RESULTS,
             "searchSection": "/video",
         }
         run = client.actor("clockworks/tiktok-scraper").call(run_input=run_input)
@@ -51,7 +52,7 @@ def fetch_linkedin(brand):
         # harvestapi/linkedin-post-search supports keyword search
         run_input = {
             "keywords": brand,
-            "maxResults": config.APIFY_MAX_RESULTS,
+            "maxItems": config.APIFY_MAX_RESULTS,
         }
         run = client.actor("harvestapi/linkedin-post-search").call(run_input=run_input)
         for item in client.dataset(run["defaultDatasetId"]).iterate_items():
@@ -75,7 +76,7 @@ def fetch_web_news(brand):
     app = FirecrawlApp(api_key=config.FIRECRAWL_API_KEY)
     results = []
     try:
-        response = app.search(query=f"{brand} brand sentiment reviews opinions")
+        response = app.search(query=f"{brand} brand sentiment reviews opinions", limit=config.FIRECRAWL_MAX_RESULTS)
         # Handle both dict response and SearchData object
         if hasattr(response, "data"):
             items = response.data
