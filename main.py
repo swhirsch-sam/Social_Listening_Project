@@ -10,7 +10,6 @@ from firecrawl import FirecrawlApp
 
 import config
 
-# Collect warnings from each source to surface in the UI
 source_warnings = []
 
 
@@ -21,14 +20,15 @@ def fetch_tiktok(brand):
     client = ApifyClient(config.APIFY_API_KEY)
     results = []
     try:
+        # clockworks/tiktok-scraper supports keyword search
         run_input = {
-            "keywords": [brand],
-            "maxItems": config.APIFY_MAX_RESULTS,
-            "searchSection": "/search",
+            "searchQueries": [brand],
+            "maxResultsPerQuery": config.APIFY_MAX_RESULTS,
+            "searchSection": "videos",
         }
-        run = client.actor(config.APIFY_TIKTOK_ACTOR).call(run_input=run_input)
+        run = client.actor("clockworks/tiktok-scraper").call(run_input=run_input)
         for item in client.dataset(run["defaultDatasetId"]).iterate_items():
-            text = item.get("text") or item.get("comment") or item.get("title") or ""
+            text = item.get("text") or item.get("description") or item.get("title") or ""
             if text:
                 results.append({
                     "platform": "TikTok",
@@ -48,11 +48,12 @@ def fetch_linkedin(brand):
     client = ApifyClient(config.APIFY_API_KEY)
     results = []
     try:
+        # harvestapi/linkedin-post-search supports keyword search
         run_input = {
-            "keywords": [brand],
+            "keywords": brand,
             "maxResults": config.APIFY_MAX_RESULTS,
         }
-        run = client.actor(config.APIFY_LINKEDIN_ACTOR).call(run_input=run_input)
+        run = client.actor("harvestapi/linkedin-post-search").call(run_input=run_input)
         for item in client.dataset(run["defaultDatasetId"]).iterate_items():
             text = item.get("text") or item.get("content") or item.get("commentary") or ""
             if text:
@@ -74,19 +75,34 @@ def fetch_web_news(brand):
     app = FirecrawlApp(api_key=config.FIRECRAWL_API_KEY)
     results = []
     try:
-        response = app.search(
-            query=f"{brand} brand sentiment reviews opinions",
-            limit=config.FIRECRAWL_MAX_RESULTS
-        )
-        items = response if isinstance(response, list) else response.get("data", [])
+        response = app.search(query=f"{brand} brand sentiment reviews opinions")
+        # Handle both dict response and SearchData object
+        if hasattr(response, "data"):
+            items = response.data
+        elif isinstance(response, dict):
+            items = response.get("data", [])
+        elif isinstance(response, list):
+            items = response
+        else:
+            items = []
         for item in items:
-            content = item.get("markdown") or item.get("content") or item.get("description") or item.get("snippet") or ""
+            # item may be a dict or an object with attributes
+            if hasattr(item, "__dict__"):
+                item = item.__dict__
+            content = (
+                item.get("markdown") or
+                item.get("content") or
+                item.get("description") or
+                item.get("snippet") or
+                item.get("extract") or ""
+            )
+            url = item.get("url") or item.get("sourceURL") or ""
             if content:
                 results.append({
                     "platform": "Web/News",
-                    "author": item.get("source") or item.get("url") or "",
+                    "author": url,
                     "content": content[:500],
-                    "url": item.get("url") or "",
+                    "url": url,
                 })
     except Exception as e:
         source_warnings.append(f"Web/News: {e}")
