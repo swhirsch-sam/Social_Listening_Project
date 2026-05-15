@@ -1,18 +1,6 @@
 #!/usr/bin/env python3
 """
-Social Listening MVP - Brand Mention Tracker
-============================================
-Sources
-  - Apify: futurizerush/tiktok-comment-scraper
-  - Apify: supreme_coder/linkedin-post
-  - Firecrawl: web/news search
-
-Pipeline
-  1. Fetch brand mentions from each source
-  2. Send each post to Claude for sentiment + key topics
-  3. Append results to Google Sheets
-
-Config: edit config.py before running.
+Social Listening - Brand Sentiment Analyzer
 """
 import json
 import re
@@ -20,299 +8,166 @@ import time
 import datetime
 
 import anthropic
-import gspread
-from google.oauth2.service_account import Credentials
 from apify_client import ApifyClient
 from firecrawl import FirecrawlApp
 
 import config
 
 
-# ── Google Sheets ─────────────────────────────────────────────────────────────
-
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive",
-]
-
-HEADERS = [
-    "Timestamp",
-    "Source",
-    "Platform",
-    "Author",
-    "Content",
-    "Sentiment",
-    "Confidence",
-    "Key Topics",
-    "URL",
-    "Raw JSON",
-]
-
-
-def get_sheet():
-    """Authenticate with Google Sheets and return the first worksheet.
-
-    Writes the header row if the sheet is empty.
-    """
-    creds = Credentials.from_service_account_file(
-        config.GOOGLE_CREDENTIALS_FILE, scopes=SCOPES
-    )
-    client = gspread.authorize(creds)
-    sheet = client.open_by_key(config.GOOGLE_SHEET_ID).sheet1
-    if not sheet.row_values(1):
-        sheet.append_row(HEADERS)
-    return sheet
-
-
-# ── Claude sentiment analysis ────────────────────────────────────────────────
-
-def analyse_sentiment(text):
-    """Send *text* to Claude; return a dict with sentiment, confidence, topics.
-
-    Returns
-    -------
-    dict
-        {
-            "sentiment":  "positive" | "negative" | "neutral",
-            "confidence": "high" | "medium" | "low",
-            "topics":     ["topic1", "topic2", ...],   # up to 5
-        }
-    """
-    if not text or not text.strip():
-        return {"sentiment": "neutral", "confidence": "low", "topics": []}
-
-    claude = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
-
-    prompt = (
-        "Analyse the following social-media post or article excerpt for brand/product sentiment.\n\n"
-        "Return a JSON object with exactly these keys:\n"
-        '  "sentiment"  : one of "positive", "negative", or "neutral"\n'
-        '  "confidence" : one of "high", "medium", or "low"\n'
-        '  "topics"     : a JSON array of up to 5 short key-topic strings\n\n'
-        "Post/excerpt:\n\"\"\"\n"
-        f"{text[:3000]}\n\"\"\"\n\n"
-        "Respond with raw JSON only — no markdown fences, no extra text."
-    )
-
-    message = claude.messages.create(
-        model=config.CLAUDE_MODEL,
-        max_tokens=256,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    raw = message.content[0].text.strip()
-    # Strip accidental markdown code fences
-    raw = re.sub(r"^```[a-z]*\s*", "", raw, flags=re.MULTILINE)
-    raw = re.sub(r"```\s*$", "", raw, flags=re.MULTILINE).strip()
-
+def is_2026(date_str):
+    if not date_str:
+        return False
     try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
+        for fmt in ["%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ",
+                    "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"]:
+            try:
+                dt = datetime.datetime.strptime(str(date_str)[:19], fmt[:19])
+                return dt.year == 2026
+            except ValueError:
+                continue
+        return bool(re.search(r'\b2026\b', str(date_str)))
+    except Exception:
+        return False
+
+
+def fetch_tiktok(brand):
+    if not config.ENABLE_TIKTOK:
+        return []
+    client = ApifyClient(config.APIFY_API_KEY)
+    results = []
+    try:
+        run_input = {"keywords": [brand], "maxItems": config.APIFY_MAX_RESULTS}
+        run = client.actor(config.APIFY_TIKTOK_ACTOR).call(run_input=run_input)
+        for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+            date_str = (item.get("createTime") or item.get("createdAt") or item.get("date") or "")
+            if not is_2026(str(date_str)):
+                continue
+            results.append({
+                "platform": "TikTok",
+                "author": (item.get("authorMeta") or {}).get("name") or item.get("author", ""),
+                "content": item.get("text") or item.get("comment") or "",
+                "url": item.get("webVideoUrl") or item.get("url") or "",
+                "date": str(date_str),
+            })
+    except Exception as e:
+        print(f"[TikTok] Error: {e}")
+    return results
+
+
+def fetch_linkedin(brand):
+    if not config.ENABLE_LINKEDIN:
+        return []
+    client = ApifyClient(config.APIFY_API_KEY)
+    results = []
+    try:
+        run_input = {"keywords": brand, "maxResults": config.APIFY_MAX_RESULTS}
+        run = client.actor(config.APIFY_LINKEDIN_ACTOR).call(run_input=run_input)
+        for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+            date_str = (item.get("postedAt") or item.get("date") or item.get("publishedAt") or "")
+            if not is_2026(str(date_str)):
+                continue
+            results.append({
+                "platform": "LinkedIn",
+                "author": item.get("authorName") or item.get("author") or "",
+                "content": item.get("text") or item.get("content") or "",
+                "url": item.get("url") or item.get("postUrl") or "",
+                "date": str(date_str),
+            })
+    except Exception as e:
+        print(f"[LinkedIn] Error: {e}")
+    return results
+
+
+def fetch_web_news(brand):
+    if not config.ENABLE_FIRECRAWL:
+        return []
+    app = FirecrawlApp(api_key=config.FIRECRAWL_API_KEY)
+    results = []
+    try:
+        search_results = app.search(query=f"{brand} 2026", limit=config.FIRECRAWL_MAX_RESULTS)
+        items = (search_results if isinstance(search_results, list) else search_results.get("data", []))
+        for item in items:
+            meta = item.get("metadata") or {}
+            date_str = (meta.get("publishedDate") or meta.get("date") or item.get("publishedDate") or item.get("date") or "")
+            content = (item.get("markdown") or item.get("content") or item.get("description") or "")
+            if date_str and not is_2026(str(date_str)):
+                if "2026" not in content:
+                    continue
+            results.append({
+                "platform": "Web/News",
+                "author": meta.get("author") or item.get("author") or "",
+                "content": content[:1000],
+                "url": item.get("url") or meta.get("sourceURL") or "",
+                "date": str(date_str),
+            })
+    except Exception as e:
+        print(f"[Web/News] Error: {e}")
+    return results
+
+
+def analyze_sentiment(item, brand):
+    client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+    prompt = (
+        f'You are a brand sentiment analyst. Analyze the following content about "{brand}".\n\n'
+        f'Platform: {item["platform"]}\nContent: {item["content"]}\n\n'
+        'Respond in JSON only: {"sentiment": "positive|neutral|negative", "confidence": 0.0-1.0, "reason": "one sentence"}'
+    )
+    try:
+        message = client.messages.create(
+            model=config.CLAUDE_MODEL,
+            max_tokens=200,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = message.content[0].text.strip()
+        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if json_match:
+            result = json.loads(json_match.group())
+            return {**item, **result}
+    except Exception as e:
+        print(f"[Claude] Error: {e}")
+    return {**item, "sentiment": "neutral", "confidence": 0.0, "reason": "Analysis failed"}
+
+
+def run_analysis(brand):
+    brand = brand.strip()
+    all_items = []
+    all_items.extend(fetch_tiktok(brand))
+    all_items.extend(fetch_linkedin(brand))
+    all_items.extend(fetch_web_news(brand))
+
+    if not all_items:
         return {
-            "sentiment": "neutral",
-            "confidence": "low",
-            "topics": [],
-            "parse_error": raw,
+            "brand": brand,
+            "total_posts": 0,
+            "sentiment_summary": {"positive": 0, "neutral": 0, "negative": 0},
+            "overall_sentiment": "neutral",
+            "confidence": 0.0,
+            "posts": [],
+            "error": "No 2026 data found for this brand across all sources.",
         }
 
-
-# ── Apify: TikTok comment scraper ────────────────────────────────────────────
-
-def fetch_tiktok_comments():
-    """Run the Apify TikTok comment scraper and return normalised items."""
-    print(f"[Apify/TikTok] keywords: {config.BRAND_KEYWORDS}")
-    apify = ApifyClient(config.APIFY_API_KEY)
-    run_input = {
-        "searchQueries": config.BRAND_KEYWORDS,
-        "resultsPerPage": config.APIFY_MAX_RESULTS,
-        "maxItems": config.APIFY_MAX_RESULTS,
-    }
-    run = apify.actor(config.APIFY_TIKTOK_ACTOR).call(run_input=run_input)
-    items = []
-    for item in apify.dataset(run["defaultDatasetId"]).iterate_items():
-        text = (
-            item.get("text")
-            or item.get("commentText")
-            or item.get("content")
-            or ""
-        )
-        items.append(
-            {
-                "source": "apify",
-                "platform": "tiktok",
-                "author": (
-                    (item.get("authorMeta") or {}).get("name")
-                    or item.get("uniqueId")
-                    or ""
-                ),
-                "content": text,
-                "url": item.get("webVideoUrl") or item.get("url") or "",
-                "raw": str(item)[:300],
-            }
-        )
-    print(f"[Apify/TikTok] {len(items)} items fetched")
-    return items
-
-
-# ── Apify: LinkedIn post scraper ──────────────────────────────────────────────
-
-def fetch_linkedin_posts():
-    """Run the Apify LinkedIn post scraper and return normalised items."""
-    print(f"[Apify/LinkedIn] keywords: {config.BRAND_KEYWORDS}")
-    apify = ApifyClient(config.APIFY_API_KEY)
-    run_input = {
-        "searchQuery": " OR ".join(config.BRAND_KEYWORDS),
-        "maxResults": config.APIFY_MAX_RESULTS,
-    }
-    run = apify.actor(config.APIFY_LINKEDIN_ACTOR).call(run_input=run_input)
-    items = []
-    for item in apify.dataset(run["defaultDatasetId"]).iterate_items():
-        text = (
-            item.get("text")
-            or item.get("content")
-            or item.get("description")
-            or ""
-        )
-        items.append(
-            {
-                "source": "apify",
-                "platform": "linkedin",
-                "author": (
-                    (item.get("author") or {}).get("name")
-                    or item.get("authorName")
-                    or ""
-                ),
-                "content": text,
-                "url": item.get("url") or item.get("postUrl") or "",
-                "raw": str(item)[:300],
-            }
-        )
-    print(f"[Apify/LinkedIn] {len(items)} items fetched")
-    return items
-
-
-# ── Firecrawl: web/news search ───────────────────────────────────────────────
-
-def fetch_firecrawl_mentions():
-    """Use Firecrawl to search web/news for every brand keyword."""
-    print(f"[Firecrawl] keywords: {config.BRAND_KEYWORDS}")
-    fc = FirecrawlApp(api_key=config.FIRECRAWL_API_KEY)
-    items = []
-    for kw in config.BRAND_KEYWORDS:
-        try:
-            results = fc.search(
-                query=kw,
-                params={
-                    "limit": config.FIRECRAWL_MAX_RESULTS,
-                    "scrapeOptions": {"formats": ["markdown"]},
-                },
-            )
-            # Firecrawl can return a dict with a "data" key or a list directly
-            if isinstance(results, dict):
-                data = results.get("data") or []
-            elif isinstance(results, list):
-                data = results
-            else:
-                data = []
-
-            for r in data:
-                content = (
-                    r.get("markdown")
-                    or r.get("content")
-                    or r.get("description")
-                    or r.get("snippet")
-                    or ""
-                )
-                items.append(
-                    {
-                        "source": "firecrawl",
-                        "platform": "web/news",
-                        "author": r.get("author") or r.get("siteName") or "",
-                        "content": content,
-                        "url": r.get("url") or r.get("sourceURL") or "",
-                        "raw": str(r)[:300],
-                    }
-                )
-        except Exception as exc:
-            print(f"[Firecrawl] Error for keyword '{kw}': {exc}")
-
-    print(f"[Firecrawl] {len(items)} items fetched")
-    return items
-
-
-# ── Google Sheets writer ──────────────────────────────────────────────────────
-
-def write_to_sheet(sheet, item, analysis):
-    """Append one row to the Google Sheet."""
-    topics_str = ", ".join(analysis.get("topics") or [])
-    row = [
-        datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
-        item["source"],
-        item["platform"],
-        item["author"],
-        item["content"][:500],        # cap cell length
-        analysis.get("sentiment", ""),
-        analysis.get("confidence", ""),
-        topics_str,
-        item["url"],
-        item["raw"],
-    ]
-    sheet.append_row(row, value_input_option="USER_ENTERED")
-
-
-# ── Main orchestrator ─────────────────────────────────────────────────────────
-
-def main():
-    print("=" * 60)
-    print("Social Listening MVP — starting run")
-    print("=" * 60)
-
-    sheet = get_sheet()
-
-    all_items = []
-    if config.ENABLE_TIKTOK:
-        all_items += fetch_tiktok_comments()
-    if config.ENABLE_LINKEDIN:
-        all_items += fetch_linkedin_posts()
-    if config.ENABLE_FIRECRAWL:
-        all_items += fetch_firecrawl_mentions()
-
-    total = len(all_items)
-    print(f"\nTotal items collected: {total}")
-    if total == 0:
-        print("No items found. Check your BRAND_KEYWORDS in config.py.")
-        return
-
-    print("\nRunning sentiment analysis...\n")
-    analysed = 0
-    skipped = 0
-
-    for i, item in enumerate(all_items, 1):
-        if not item["content"].strip():
-            print(f"  [{i}/{total}] SKIP  — empty content ({item['platform']})")
-            skipped += 1
-            continue
-
-        label = (item["author"] or "(unknown)")[:35]
-        print(f"  [{i}/{total}] {item['platform']:<10} {label:<36}", end="", flush=True)
-
-        analysis = analyse_sentiment(item["content"])
-        sentiment = analysis.get("sentiment", "?")
-        confidence = analysis.get("confidence", "?")
-        topics_preview = ", ".join((analysis.get("topics") or [])[:3])
-        print(f"  {sentiment} ({confidence})  |  {topics_preview}")
-
-        write_to_sheet(sheet, item, analysis)
-        analysed += 1
+    analyzed = []
+    for item in all_items:
+        result = analyze_sentiment(item, brand)
+        analyzed.append(result)
         time.sleep(config.CLAUDE_DELAY_SECONDS)
 
-    print("\n" + "=" * 60)
-    print(f"Run complete")
-    print(f"  Analysed : {analysed}")
-    print(f"  Skipped  : {skipped}")
-    print(f"  Sheet ID : {config.GOOGLE_SHEET_ID}")
-    print("=" * 60)
+    counts = {"positive": 0, "neutral": 0, "negative": 0}
+    for item in analyzed:
+        s = item.get("sentiment", "neutral").lower()
+        if s in counts:
+            counts[s] += 1
 
+    total = len(analyzed)
+    overall = max(counts, key=counts.get)
+    avg_conf = sum(item.get("confidence", 0.0) for item in analyzed) / total if total > 0 else 0.0
 
-if __name__ == "__main__":
-    main()
+    return {
+        "brand": brand,
+        "total_posts": total,
+        "sentiment_summary": counts,
+        "overall_sentiment": overall,
+        "confidence": round(avg_conf, 2),
+        "posts": analyzed,
+        "error": None,
+    }
