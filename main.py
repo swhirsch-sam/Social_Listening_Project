@@ -6,7 +6,9 @@ import time
 
 import anthropic
 from apify_client import ApifyClient
-from firecrawl import FirecrawlApp
+# Web search now uses Serper (https://serper.dev) instead of Firecrawl.
+import json
+import requests
 
 import config
 
@@ -112,38 +114,23 @@ def fetch_linkedin(brand):
 
 
 def fetch_web_news(brand):
+    """Pull web/news mentions of the brand via Serper (Google Search API).
+
+    Up to config.FIRECRAWL_MAX_RESULTS (hard-capped at 250) items are returned,
+    aggregated across several brand-related queries and deduped by URL.
+    """
     global source_warnings
     if not config.ENABLE_FIRECRAWL:
         return []
 
-    # Support both old (FirecrawlApp, v1.x) and new (Firecrawl, v2+) SDK class names.
-    _FirecrawlCls = None
-    try:
-        from firecrawl import Firecrawl as _FirecrawlCls  # v2+
-        _log("Firecrawl: using modern Firecrawl class")
-    except ImportError:
-        try:
-            from firecrawl import FirecrawlApp as _FirecrawlCls  # legacy
-            _log("Firecrawl: using legacy FirecrawlApp class")
-        except ImportError as e:
-            source_warnings.append(f"Web/News: firecrawl import failed: {e}")
-            _log(f"Firecrawl: ERROR import failed: {e}")
-            return []
-
-    if not config.FIRECRAWL_API_KEY:
-        source_warnings.append("Web/News: FIRECRAWL_API_KEY is empty")
-        _log("Firecrawl: ERROR FIRECRAWL_API_KEY is empty")
+    api_key = getattr(config, "SERPER_API_KEY", "") or ""
+    if not api_key:
+        source_warnings.append("Web/News: SERPER_API_KEY is empty (set it in your environment)")
+        _log("Serper: ERROR SERPER_API_KEY is empty")
         return []
 
-    try:
-        app = _FirecrawlCls(api_key=config.FIRECRAWL_API_KEY)
-    except Exception as e:
-        source_warnings.append(f"Web/News: client init failed: {e}")
-        _log(f"Firecrawl: ERROR client init: {e}")
-        return []
-
-    results = []
-    seen_urls = set()
+    # Hard cap at 250 even if config says higher.
+    overall_cap = min(250, max(1, int(getattr(config, "FIRECRAWL_MAX_RESULTS", 250))))
 
     queries = [
         f"{brand} brand sentiment",
@@ -152,101 +139,66 @@ def fetch_web_news(brand):
         f"{brand} complaints",
         f"{brand} press",
     ]
-    # Firecrawl /search caps a single request around 100 results. Stay well under it.
-    per_query_limit = min(50, max(1, config.FIRECRAWL_MAX_RESULTS // len(queries) + 5))
+    # Serper allows up to 100 per request; we'll be modest to spread queries.
+    per_query = min(100, max(10, overall_cap // len(queries) + 5))
 
-    def _coerce_dict(x):
-        """Return x as a dict if possible (handles pydantic models / objects with __dict__)."""
-        if isinstance(x, dict):
-            return x
-        if hasattr(x, "model_dump"):
-            try:
-                return x.model_dump()
-            except Exception:
-                pass
-        if hasattr(x, "dict"):
-            try:
-                return x.dict()
-            except Exception:
-                pass
-        if hasattr(x, "__dict__"):
-            return {k: v for k, v in x.__dict__.items() if not k.startswith("_")}
-        return {}
+    results = []
+    seen_urls = set()
+    endpoints = [
+        ("https://google.serper.dev/search", "web"),    # organic web results
+        ("https://google.serper.dev/news", "news"),     # news results
+    ]
 
-    def _extract_items(response):
-        """Pull web/news/images lists out of the search response across SDK versions."""
-        # Modern SDK: response itself is dict-like (response.get('web', []))
-        # Older SDK: response.data is dict or list
-        # Even older: response is dict with key 'data' which is a list
-        candidates = []
-        # 1) Try direct .get('web') / .get('news') on the response
-        if hasattr(response, "get"):
-            try:
-                for key in ("web", "news", "images"):
-                    vals = response.get(key)
-                    if isinstance(vals, list):
-                        candidates.extend(vals)
-            except Exception:
-                pass
-        # 2) Try response.data
-        data = getattr(response, "data", None)
-        if data is None and isinstance(response, dict):
-            data = response.get("data")
-        if data is not None:
-            if isinstance(data, dict):
-                for key in ("web", "news", "images"):
-                    vals = data.get(key)
-                    if isinstance(vals, list):
-                        candidates.extend(vals)
-                # Some old shapes: data is itself the list
-                if not candidates and isinstance(data.get("data"), list):
-                    candidates.extend(data["data"])
-            elif isinstance(data, list):
-                candidates.extend(data)
-        # 3) Last-ditch: object with .web/.news/.images attributes
-        if not candidates:
-            for key in ("web", "news", "images"):
-                vals = getattr(response, key, None)
-                if isinstance(vals, list):
-                    candidates.extend(vals)
-        return candidates
+    headers = {
+        "X-API-KEY": api_key,
+        "Content-Type": "application/json",
+    }
 
     for q in queries:
-        if len(results) >= config.FIRECRAWL_MAX_RESULTS:
+        if len(results) >= overall_cap:
             break
-        try:
-            _log(f"Firecrawl: searching '{q}' (limit {per_query_limit}, have {len(results)})")
-            response = app.search(query=q, limit=per_query_limit)
-            items = _extract_items(response)
-            _log(f"Firecrawl: response type={type(response).__name__}, items_found={len(items)}")
-            for item in items:
-                item = _coerce_dict(item)
-                url = item.get("url") or item.get("sourceURL") or ""
-                if not url or url in seen_urls:
+        for url, kind in endpoints:
+            if len(results) >= overall_cap:
+                break
+            try:
+                _log(f"Serper: {kind} search '{q}' (limit {per_query}, have {len(results)})")
+                payload = {"q": q, "num": per_query}
+                resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=20)
+                if resp.status_code != 200:
+                    source_warnings.append(
+                        f"Web/News ('{q}' {kind}): HTTP {resp.status_code}: {resp.text[:200]}"
+                    )
+                    _log(f"Serper: ERROR HTTP {resp.status_code} for '{q}' ({kind})")
                     continue
-                seen_urls.add(url)
-                content = (
-                    item.get("markdown") or
-                    item.get("content") or
-                    item.get("description") or
-                    item.get("snippet") or
-                    item.get("extract") or
-                    item.get("title") or ""
+                data = resp.json()
+                # Serper /search returns 'organic' for web results; /news returns 'news'.
+                items = data.get("organic") or data.get("news") or []
+                _log(f"Serper: '{q}' ({kind}) returned {len(items)} items")
+                for item in items:
+                    if len(results) >= overall_cap:
+                        break
+                    link = item.get("link") or ""
+                    if not link or link in seen_urls:
+                        continue
+                    seen_urls.add(link)
+                    title = item.get("title") or ""
+                    snippet = item.get("snippet") or item.get("description") or ""
+                    content_parts = [p for p in (title, snippet) if p]
+                    if not content_parts:
+                        continue
+                    content = " — ".join(content_parts)
+                    results.append({
+                        "platform": "News" if kind == "news" else "Web",
+                        "author": item.get("source") or link,
+                        "content": content[:500],
+                        "url": link,
+                    })
+            except Exception as e:
+                source_warnings.append(
+                    f"Web/News ('{q}' {kind}): {type(e).__name__}: {e}"
                 )
-                if not content:
-                    continue
-                results.append({
-                    "platform": "Web/News",
-                    "author": url,
-                    "content": str(content)[:500],
-                    "url": url,
-                })
-                if len(results) >= config.FIRECRAWL_MAX_RESULTS:
-                    break
-        except Exception as e:
-            source_warnings.append(f"Web/News ('{q}'): {type(e).__name__}: {e}")
-            _log(f"Firecrawl: ERROR on '{q}': {type(e).__name__}: {e}")
-    _log(f"Firecrawl: collected {len(results)} items")
+                _log(f"Serper: EXCEPTION on '{q}' ({kind}): {type(e).__name__}: {e}")
+    _log(f"Serper: collected {len(results)} items")
     return results
 
 def analyze_sentiment(posts):
