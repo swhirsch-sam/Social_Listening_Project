@@ -115,17 +115,36 @@ def fetch_web_news(brand):
     global source_warnings
     if not config.ENABLE_FIRECRAWL:
         return []
-    # Support both old (FirecrawlApp) and new (Firecrawl) SDK class names
+
+    # Support both old (FirecrawlApp, v1.x) and new (Firecrawl, v2+) SDK class names.
+    _FirecrawlCls = None
     try:
-        from firecrawl import Firecrawl as _FirecrawlCls
+        from firecrawl import Firecrawl as _FirecrawlCls  # v2+
+        _log("Firecrawl: using modern Firecrawl class")
     except ImportError:
-        _FirecrawlCls = FirecrawlApp
-    app = _FirecrawlCls(api_key=config.FIRECRAWL_API_KEY)
+        try:
+            from firecrawl import FirecrawlApp as _FirecrawlCls  # legacy
+            _log("Firecrawl: using legacy FirecrawlApp class")
+        except ImportError as e:
+            source_warnings.append(f"Web/News: firecrawl import failed: {e}")
+            _log(f"Firecrawl: ERROR import failed: {e}")
+            return []
+
+    if not config.FIRECRAWL_API_KEY:
+        source_warnings.append("Web/News: FIRECRAWL_API_KEY is empty")
+        _log("Firecrawl: ERROR FIRECRAWL_API_KEY is empty")
+        return []
+
+    try:
+        app = _FirecrawlCls(api_key=config.FIRECRAWL_API_KEY)
+    except Exception as e:
+        source_warnings.append(f"Web/News: client init failed: {e}")
+        _log(f"Firecrawl: ERROR client init: {e}")
+        return []
+
     results = []
     seen_urls = set()
 
-    # Firecrawl /search caps a single request near 100 results, so issue
-    # several varied queries and dedupe by URL to reach the configured total.
     queries = [
         f"{brand} brand sentiment",
         f"{brand} reviews",
@@ -133,27 +152,64 @@ def fetch_web_news(brand):
         f"{brand} complaints",
         f"{brand} press",
     ]
-    per_query_limit = min(100, max(1, config.FIRECRAWL_MAX_RESULTS // len(queries) + 5))
+    # Firecrawl /search caps a single request around 100 results. Stay well under it.
+    per_query_limit = min(50, max(1, config.FIRECRAWL_MAX_RESULTS // len(queries) + 5))
+
+    def _coerce_dict(x):
+        """Return x as a dict if possible (handles pydantic models / objects with __dict__)."""
+        if isinstance(x, dict):
+            return x
+        if hasattr(x, "model_dump"):
+            try:
+                return x.model_dump()
+            except Exception:
+                pass
+        if hasattr(x, "dict"):
+            try:
+                return x.dict()
+            except Exception:
+                pass
+        if hasattr(x, "__dict__"):
+            return {k: v for k, v in x.__dict__.items() if not k.startswith("_")}
+        return {}
 
     def _extract_items(response):
-        # New SDK: response.data is dict with keys web/news/images
+        """Pull web/news/images lists out of the search response across SDK versions."""
+        # Modern SDK: response itself is dict-like (response.get('web', []))
+        # Older SDK: response.data is dict or list
+        # Even older: response is dict with key 'data' which is a list
+        candidates = []
+        # 1) Try direct .get('web') / .get('news') on the response
+        if hasattr(response, "get"):
+            try:
+                for key in ("web", "news", "images"):
+                    vals = response.get(key)
+                    if isinstance(vals, list):
+                        candidates.extend(vals)
+            except Exception:
+                pass
+        # 2) Try response.data
         data = getattr(response, "data", None)
         if data is None and isinstance(response, dict):
-            data = response.get("data", response)
-        if data is None:
-            return []
-        if isinstance(data, dict):
-            out = []
+            data = response.get("data")
+        if data is not None:
+            if isinstance(data, dict):
+                for key in ("web", "news", "images"):
+                    vals = data.get(key)
+                    if isinstance(vals, list):
+                        candidates.extend(vals)
+                # Some old shapes: data is itself the list
+                if not candidates and isinstance(data.get("data"), list):
+                    candidates.extend(data["data"])
+            elif isinstance(data, list):
+                candidates.extend(data)
+        # 3) Last-ditch: object with .web/.news/.images attributes
+        if not candidates:
             for key in ("web", "news", "images"):
-                vals = data.get(key)
+                vals = getattr(response, key, None)
                 if isinstance(vals, list):
-                    out.extend(vals)
-            if not out and "data" in data and isinstance(data["data"], list):
-                out = data["data"]
-            return out
-        if isinstance(data, list):
-            return data
-        return []
+                    candidates.extend(vals)
+        return candidates
 
     for q in queries:
         if len(results) >= config.FIRECRAWL_MAX_RESULTS:
@@ -161,9 +217,10 @@ def fetch_web_news(brand):
         try:
             _log(f"Firecrawl: searching '{q}' (limit {per_query_limit}, have {len(results)})")
             response = app.search(query=q, limit=per_query_limit)
-            for item in _extract_items(response):
-                if hasattr(item, "__dict__"):
-                    item = item.__dict__
+            items = _extract_items(response)
+            _log(f"Firecrawl: response type={type(response).__name__}, items_found={len(items)}")
+            for item in items:
+                item = _coerce_dict(item)
                 url = item.get("url") or item.get("sourceURL") or ""
                 if not url or url in seen_urls:
                     continue
@@ -173,24 +230,24 @@ def fetch_web_news(brand):
                     item.get("content") or
                     item.get("description") or
                     item.get("snippet") or
-                    item.get("extract") or ""
+                    item.get("extract") or
+                    item.get("title") or ""
                 )
                 if not content:
                     continue
                 results.append({
                     "platform": "Web/News",
                     "author": url,
-                    "content": content[:500],
+                    "content": str(content)[:500],
                     "url": url,
                 })
                 if len(results) >= config.FIRECRAWL_MAX_RESULTS:
                     break
         except Exception as e:
-            source_warnings.append(f"Web/News ('{q}'): {e}")
-            _log(f"Firecrawl: ERROR on '{q}': {e}")
+            source_warnings.append(f"Web/News ('{q}'): {type(e).__name__}: {e}")
+            _log(f"Firecrawl: ERROR on '{q}': {type(e).__name__}: {e}")
     _log(f"Firecrawl: collected {len(results)} items")
     return results
-
 
 def analyze_sentiment(posts):
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
