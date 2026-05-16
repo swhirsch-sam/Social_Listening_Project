@@ -53,10 +53,13 @@ def fetch_linkedin(brand):
     try:
         # harvestapi/linkedin-post-search supports keyword search
         run_input = {
-            "keywords": brand,
-            "maxItems": config.APIFY_MAX_RESULTS,
+            "searchQueries": [brand],
+            "maxPosts": config.APIFY_MAX_RESULTS,
         }
-        run = client.actor("harvestapi/linkedin-post-search").call(run_input=run_input)
+        run = client.actor("harvestapi/linkedin-post-search").call(
+            run_input=run_input,
+            max_items=config.APIFY_MAX_RESULTS,
+        )
         for item in client.dataset(run["defaultDatasetId"]).iterate_items():
             text = item.get("text") or item.get("content") or item.get("commentary") or ""
             if text:
@@ -75,40 +78,77 @@ def fetch_web_news(brand):
     global source_warnings
     if not config.ENABLE_FIRECRAWL:
         return []
-    app = FirecrawlApp(api_key=config.FIRECRAWL_API_KEY)
-    results = []
+    # Support both old (FirecrawlApp) and new (Firecrawl) SDK class names
     try:
-        response = app.search(query=f"{brand} brand sentiment reviews opinions", limit=config.FIRECRAWL_MAX_RESULTS)
-        # Handle both dict response and SearchData object
-        if hasattr(response, "data"):
-            items = response.data
-        elif isinstance(response, dict):
-            items = response.get("data", [])
-        elif isinstance(response, list):
-            items = response
-        else:
-            items = []
-        for item in items:
-            # item may be a dict or an object with attributes
-            if hasattr(item, "__dict__"):
-                item = item.__dict__
-            content = (
-                item.get("markdown") or
-                item.get("content") or
-                item.get("description") or
-                item.get("snippet") or
-                item.get("extract") or ""
-            )
-            url = item.get("url") or item.get("sourceURL") or ""
-            if content:
+        from firecrawl import Firecrawl as _FirecrawlCls
+    except ImportError:
+        _FirecrawlCls = FirecrawlApp
+    app = _FirecrawlCls(api_key=config.FIRECRAWL_API_KEY)
+    results = []
+    seen_urls = set()
+
+    # Firecrawl /search caps a single request near 100 results, so issue
+    # several varied queries and dedupe by URL to reach the configured total.
+    queries = [
+        f"{brand} brand sentiment",
+        f"{brand} reviews",
+        f"{brand} opinions",
+        f"{brand} complaints",
+        f"{brand} press",
+    ]
+    per_query_limit = min(100, max(1, config.FIRECRAWL_MAX_RESULTS // len(queries) + 5))
+
+    def _extract_items(response):
+        # New SDK: response.data is dict with keys web/news/images
+        data = getattr(response, "data", None)
+        if data is None and isinstance(response, dict):
+            data = response.get("data", response)
+        if data is None:
+            return []
+        if isinstance(data, dict):
+            out = []
+            for key in ("web", "news", "images"):
+                vals = data.get(key)
+                if isinstance(vals, list):
+                    out.extend(vals)
+            if not out and "data" in data and isinstance(data["data"], list):
+                out = data["data"]
+            return out
+        if isinstance(data, list):
+            return data
+        return []
+
+    for q in queries:
+        if len(results) >= config.FIRECRAWL_MAX_RESULTS:
+            break
+        try:
+            response = app.search(query=q, limit=per_query_limit)
+            for item in _extract_items(response):
+                if hasattr(item, "__dict__"):
+                    item = item.__dict__
+                url = item.get("url") or item.get("sourceURL") or ""
+                if not url or url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                content = (
+                    item.get("markdown") or
+                    item.get("content") or
+                    item.get("description") or
+                    item.get("snippet") or
+                    item.get("extract") or ""
+                )
+                if not content:
+                    continue
                 results.append({
                     "platform": "Web/News",
                     "author": url,
                     "content": content[:500],
                     "url": url,
                 })
-    except Exception as e:
-        source_warnings.append(f"Web/News: {e}")
+                if len(results) >= config.FIRECRAWL_MAX_RESULTS:
+                    break
+        except Exception as e:
+            source_warnings.append(f"Web/News ('{q}'): {e}")
     return results
 
 
