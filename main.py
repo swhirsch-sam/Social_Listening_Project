@@ -13,12 +13,31 @@ import config
 source_warnings = []
 
 
+# Optional UI callback so a Streamlit app can render progress live.
+# When set via set_log_callback(fn), every _log() call also invokes fn(line).
+_log_callback = None
+
+
+def set_log_callback(fn):
+    """Register a function(str) to receive each progress log line. Pass None to clear."""
+    global _log_callback
+    _log_callback = fn
+
+
 def _log(msg):
-    """Print a timestamped progress line (visible in terminal + Streamlit logs)."""
+    """Print a timestamped progress line (visible in terminal + any registered UI callback)."""
     import sys
     ts = time.strftime("%H:%M:%S")
-    print(f"[{ts}] {msg}", flush=True)
+    line = f"[{ts}] {msg}"
+    print(line, flush=True)
     sys.stdout.flush()
+    cb = _log_callback
+    if cb is not None:
+        try:
+            cb(line)
+        except Exception:
+            # Never let UI logging break the pipeline
+            pass
 
 
 def fetch_tiktok(brand):
