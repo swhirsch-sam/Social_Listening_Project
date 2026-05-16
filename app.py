@@ -32,8 +32,36 @@ if submitted:
     if not brand_name:
         st.warning("Please enter a brand name before clicking Analyze.")
     else:
-        with st.spinner(f"Scraping data for '{brand_name}' and analyzing sentiment..."):
+        # Live progress: stream every _log() line from main.py into a status panel
+        status = st.status(
+            f"Scraping data for '{brand_name}' and analyzing sentiment...",
+            expanded=True,
+        )
+        log_box = status.empty()
+        log_lines = []
+
+        def _ui_log(line):
+            log_lines.append(line)
+            # Render the last ~200 lines as a code block for monospace alignment
+            log_box.code("\n".join(log_lines[-200:]), language="text")
+
+        analyzer.set_log_callback(_ui_log)
+        try:
             results = analyzer.run_analysis(brand_name)
+            status.update(
+                label=f"Done analyzing '{brand_name}'",
+                state="complete",
+                expanded=False,
+            )
+        except Exception as e:
+            status.update(
+                label=f"Run failed: {e}",
+                state="error",
+                expanded=True,
+            )
+            raise
+        finally:
+            analyzer.set_log_callback(None)
 
         st.divider()
 
