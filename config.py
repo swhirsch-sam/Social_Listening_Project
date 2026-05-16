@@ -20,8 +20,8 @@ ENABLE_LINKEDIN   = True
 ENABLE_FIRECRAWL  = True
 
 # -- Scraping limits (per source, per run) ----------------------------------
-APIFY_MAX_RESULTS      = 250   # max items per Apify actor run
-FIRECRAWL_MAX_RESULTS  = 250   # max web/news results per search
+APIFY_MAX_RESULTS      = 15    # max items per Apify actor run
+FIRECRAWL_MAX_RESULTS  = 15    # max web/news results per search
 
 # -- Claude model & rate-limit ----------------------------------------------
 CLAUDE_MODEL          = "claude-opus-4-5"
