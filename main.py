@@ -13,6 +13,14 @@ import config
 source_warnings = []
 
 
+def _log(msg):
+    """Print a timestamped progress line (visible in terminal + Streamlit logs)."""
+    import sys
+    ts = time.strftime("%H:%M:%S")
+    print(f"[{ts}] {msg}", flush=True)
+    sys.stdout.flush()
+
+
 def fetch_tiktok(brand):
     global source_warnings
     if not config.ENABLE_TIKTOK:
@@ -26,10 +34,13 @@ def fetch_tiktok(brand):
             "resultsPerPage": config.APIFY_MAX_RESULTS,
             "searchSection": "/video",
         }
+        _log(f"TikTok: starting Apify run for '{brand}' (max {config.APIFY_MAX_RESULTS})")
         run = client.actor("clockworks/tiktok-scraper").call(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
+            wait_secs=600,
         )
+        _log(f"TikTok: Apify run finished (datasetId={run.get('defaultDatasetId')}); reading items...")
         for item in client.dataset(run["defaultDatasetId"]).iterate_items():
             text = item.get("text") or item.get("description") or item.get("title") or ""
             if text:
@@ -41,6 +52,8 @@ def fetch_tiktok(brand):
                 })
     except Exception as e:
         source_warnings.append(f"TikTok: {e}")
+        _log(f"TikTok: ERROR {e}")
+    _log(f"TikTok: collected {len(results)} items")
     return results
 
 
@@ -56,10 +69,13 @@ def fetch_linkedin(brand):
             "searchQueries": [brand],
             "maxPosts": config.APIFY_MAX_RESULTS,
         }
+        _log(f"LinkedIn: starting Apify run for '{brand}' (max {config.APIFY_MAX_RESULTS})")
         run = client.actor("harvestapi/linkedin-post-search").call(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
+            wait_secs=600,
         )
+        _log(f"LinkedIn: Apify run finished (datasetId={run.get('defaultDatasetId')}); reading items...")
         for item in client.dataset(run["defaultDatasetId"]).iterate_items():
             text = item.get("text") or item.get("content") or item.get("commentary") or ""
             if text:
@@ -71,6 +87,8 @@ def fetch_linkedin(brand):
                 })
     except Exception as e:
         source_warnings.append(f"LinkedIn: {e}")
+        _log(f"LinkedIn: ERROR {e}")
+    _log(f"LinkedIn: collected {len(results)} items")
     return results
 
 
@@ -122,6 +140,7 @@ def fetch_web_news(brand):
         if len(results) >= config.FIRECRAWL_MAX_RESULTS:
             break
         try:
+            _log(f"Firecrawl: searching '{q}' (limit {per_query_limit}, have {len(results)})")
             response = app.search(query=q, limit=per_query_limit)
             for item in _extract_items(response):
                 if hasattr(item, "__dict__"):
@@ -149,6 +168,8 @@ def fetch_web_news(brand):
                     break
         except Exception as e:
             source_warnings.append(f"Web/News ('{q}'): {e}")
+            _log(f"Firecrawl: ERROR on '{q}': {e}")
+    _log(f"Firecrawl: collected {len(results)} items")
     return results
 
 
@@ -183,11 +204,16 @@ def analyze_sentiment(posts):
 def run_analysis(brand):
     global source_warnings
     source_warnings = []
+    _log(f"=== run_analysis('{brand}') starting ===")
 
     all_posts = []
+    _log("Step 1/3: TikTok")
     all_posts.extend(fetch_tiktok(brand))
+    _log("Step 2/3: LinkedIn")
     all_posts.extend(fetch_linkedin(brand))
+    _log("Step 3/3: Firecrawl web/news")
     all_posts.extend(fetch_web_news(brand))
+    _log(f"Fetching complete: {len(all_posts)} total posts; running sentiment analysis...")
 
     if not all_posts:
         warning_detail = " | ".join(source_warnings) if source_warnings else "No content returned from any source."
