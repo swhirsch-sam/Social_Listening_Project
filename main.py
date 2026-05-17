@@ -6,9 +6,6 @@ import time
 
 import anthropic
 from apify_client import ApifyClient
-# Web search now uses Serper (https://serper.dev) instead of Firecrawl.
-import json
-import requests
 
 import config
 
@@ -49,14 +46,13 @@ def fetch_tiktok(brand):
     client = ApifyClient(config.APIFY_API_KEY)
     results = []
     try:
-        # clockworks/tiktok-scraper supports keyword search
         run_input = {
             "searchQueries": [brand],
             "resultsPerPage": config.APIFY_MAX_RESULTS,
             "searchSection": "/video",
         }
         _log(f"TikTok: starting Apify run for '{brand}' (max {config.APIFY_MAX_RESULTS})")
-        run = client.actor("clockworks/tiktok-scraper").call(
+        run = client.actor(config.APIFY_TIKTOK_ACTOR).call(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
             wait_secs=600,
@@ -85,13 +81,12 @@ def fetch_linkedin(brand):
     client = ApifyClient(config.APIFY_API_KEY)
     results = []
     try:
-        # harvestapi/linkedin-post-search supports keyword search
         run_input = {
             "searchQueries": [brand],
             "maxPosts": config.APIFY_MAX_RESULTS,
         }
         _log(f"LinkedIn: starting Apify run for '{brand}' (max {config.APIFY_MAX_RESULTS})")
-        run = client.actor("harvestapi/linkedin-post-search").call(
+        run = client.actor(config.APIFY_LINKEDIN_ACTOR).call(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
             wait_secs=600,
@@ -113,93 +108,123 @@ def fetch_linkedin(brand):
     return results
 
 
-def fetch_web_news(brand):
-    """Pull web/news mentions of the brand via Serper (Google Search API).
-
-    Up to config.FIRECRAWL_MAX_RESULTS (hard-capped at 250) items are returned,
-    aggregated across several brand-related queries and deduped by URL.
-    """
+def fetch_instagram(brand):
+    """Pull Instagram posts mentioning the brand via apify/instagram-scraper (hashtag search)."""
     global source_warnings
-    if not config.ENABLE_FIRECRAWL:
+    if not config.ENABLE_INSTAGRAM:
         return []
-
-    api_key = getattr(config, "SERPER_API_KEY", "") or ""
-    if not api_key:
-        source_warnings.append("Web/News: SERPER_API_KEY is empty (set it in your environment)")
-        _log("Serper: ERROR SERPER_API_KEY is empty")
-        return []
-
-    # Hard cap at 250 even if config says higher.
-    overall_cap = min(250, max(1, int(getattr(config, "FIRECRAWL_MAX_RESULTS", 250))))
-
-    queries = [
-        f"{brand} brand sentiment",
-        f"{brand} reviews",
-        f"{brand} opinions",
-        f"{brand} complaints",
-        f"{brand} press",
-    ]
-    # Serper allows up to 100 per request; we'll be modest to spread queries.
-    per_query = min(100, max(10, overall_cap // len(queries) + 5))
-
+    client = ApifyClient(config.APIFY_API_KEY)
     results = []
-    seen_urls = set()
-    endpoints = [
-        ("https://google.serper.dev/search", "web"),    # organic web results
-        ("https://google.serper.dev/news", "news"),     # news results
-    ]
-
-    headers = {
-        "X-API-KEY": api_key,
-        "Content-Type": "application/json",
-    }
-
-    for q in queries:
-        if len(results) >= overall_cap:
-            break
-        for url, kind in endpoints:
-            if len(results) >= overall_cap:
-                break
-            try:
-                _log(f"Serper: {kind} search '{q}' (limit {per_query}, have {len(results)})")
-                payload = {"q": q, "num": per_query}
-                resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=20)
-                if resp.status_code != 200:
-                    source_warnings.append(
-                        f"Web/News ('{q}' {kind}): HTTP {resp.status_code}: {resp.text[:200]}"
-                    )
-                    _log(f"Serper: ERROR HTTP {resp.status_code} for '{q}' ({kind})")
-                    continue
-                data = resp.json()
-                # Serper /search returns 'organic' for web results; /news returns 'news'.
-                items = data.get("organic") or data.get("news") or []
-                _log(f"Serper: '{q}' ({kind}) returned {len(items)} items")
-                for item in items:
-                    if len(results) >= overall_cap:
-                        break
-                    link = item.get("link") or ""
-                    if not link or link in seen_urls:
-                        continue
-                    seen_urls.add(link)
-                    title = item.get("title") or ""
-                    snippet = item.get("snippet") or item.get("description") or ""
-                    content_parts = [p for p in (title, snippet) if p]
-                    if not content_parts:
-                        continue
-                    content = " — ".join(content_parts)
-                    results.append({
-                        "platform": "News" if kind == "news" else "Web",
-                        "author": item.get("source") or link,
-                        "content": content[:500],
-                        "url": link,
-                    })
-            except Exception as e:
-                source_warnings.append(
-                    f"Web/News ('{q}' {kind}): {type(e).__name__}: {e}"
-                )
-                _log(f"Serper: EXCEPTION on '{q}' ({kind}): {type(e).__name__}: {e}")
-    _log(f"Serper: collected {len(results)} items")
+    try:
+        # Use the brand name as a hashtag-style search; strip spaces for hashtag compatibility.
+        hashtag = brand.replace(" ", "").lower()
+        run_input = {
+            "search": hashtag,
+            "searchType": "hashtag",
+            "searchLimit": 1,
+            "resultsType": "posts",
+            "resultsLimit": config.APIFY_MAX_RESULTS,
+        }
+        _log(f"Instagram: starting Apify run for '#{hashtag}' (max {config.APIFY_MAX_RESULTS})")
+        run = client.actor(config.APIFY_INSTAGRAM_ACTOR).call(
+            run_input=run_input,
+            max_items=config.APIFY_MAX_RESULTS,
+            wait_secs=600,
+        )
+        _log(f"Instagram: Apify run finished (datasetId={run.get('defaultDatasetId')}); reading items...")
+        for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+            text = item.get("caption") or item.get("text") or ""
+            if text:
+                results.append({
+                    "platform": "Instagram",
+                    "author": item.get("ownerUsername") or item.get("ownerFullName") or "",
+                    "content": text,
+                    "url": item.get("url") or item.get("displayUrl") or "",
+                })
+    except Exception as e:
+        source_warnings.append(f"Instagram: {e}")
+        _log(f"Instagram: ERROR {e}")
+    _log(f"Instagram: collected {len(results)} items")
     return results
+
+
+def fetch_twitter(brand):
+    """Pull tweets mentioning the brand via xquik/x-tweet-scraper (keyword search)."""
+    global source_warnings
+    if not config.ENABLE_TWITTER:
+        return []
+    client = ApifyClient(config.APIFY_API_KEY)
+    results = []
+    try:
+        run_input = {
+            "searchTerms": [brand],
+            "maxItems": config.APIFY_MAX_RESULTS,
+        }
+        _log(f"Twitter/X: starting Apify run for '{brand}' (max {config.APIFY_MAX_RESULTS})")
+        run = client.actor(config.APIFY_TWITTER_ACTOR).call(
+            run_input=run_input,
+            max_items=config.APIFY_MAX_RESULTS,
+            wait_secs=600,
+        )
+        _log(f"Twitter/X: Apify run finished (datasetId={run.get('defaultDatasetId')}); reading items...")
+        for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+            text = item.get("text") or item.get("fullText") or item.get("content") or ""
+            if text:
+                author = (
+                    (item.get("user") or {}).get("userName")
+                    or (item.get("author") or {}).get("userName")
+                    or item.get("username")
+                    or ""
+                )
+                results.append({
+                    "platform": "Twitter/X",
+                    "author": author,
+                    "content": text,
+                    "url": item.get("url") or item.get("twitterUrl") or "",
+                })
+    except Exception as e:
+        source_warnings.append(f"Twitter/X: {e}")
+        _log(f"Twitter/X: ERROR {e}")
+    _log(f"Twitter/X: collected {len(results)} items")
+    return results
+
+
+def fetch_reddit(brand):
+    """Pull Reddit posts mentioning the brand via automation-lab/reddit-scraper (keyword search)."""
+    global source_warnings
+    if not config.ENABLE_REDDIT:
+        return []
+    client = ApifyClient(config.APIFY_API_KEY)
+    results = []
+    try:
+        run_input = {
+            "searchQuery": brand,
+            "maxPostsPerSource": config.APIFY_MAX_RESULTS,
+        }
+        _log(f"Reddit: starting Apify run for '{brand}' (max {config.APIFY_MAX_RESULTS})")
+        run = client.actor(config.APIFY_REDDIT_ACTOR).call(
+            run_input=run_input,
+            max_items=config.APIFY_MAX_RESULTS,
+            wait_secs=600,
+        )
+        _log(f"Reddit: Apify run finished (datasetId={run.get('defaultDatasetId')}); reading items...")
+        for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+            title = item.get("title") or ""
+            body = item.get("body") or item.get("selftext") or item.get("text") or ""
+            text = (title + " " + body).strip()
+            if text:
+                results.append({
+                    "platform": "Reddit",
+                    "author": item.get("author") or item.get("username") or "",
+                    "content": text,
+                    "url": item.get("url") or item.get("permalink") or "",
+                })
+    except Exception as e:
+        source_warnings.append(f"Reddit: {e}")
+        _log(f"Reddit: ERROR {e}")
+    _log(f"Reddit: collected {len(results)} items")
+    return results
+
 
 def analyze_sentiment(posts):
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
@@ -235,12 +260,16 @@ def run_analysis(brand):
     _log(f"=== run_analysis('{brand}') starting ===")
 
     all_posts = []
-    _log("Step 1/3: TikTok")
+    _log("Step 1/5: TikTok")
     all_posts.extend(fetch_tiktok(brand))
-    _log("Step 2/3: LinkedIn")
+    _log("Step 2/5: LinkedIn")
     all_posts.extend(fetch_linkedin(brand))
-    _log("Step 3/3: Firecrawl web/news")
-    all_posts.extend(fetch_web_news(brand))
+    _log("Step 3/5: Instagram")
+    all_posts.extend(fetch_instagram(brand))
+    _log("Step 4/5: Twitter/X")
+    all_posts.extend(fetch_twitter(brand))
+    _log("Step 5/5: Reddit")
+    all_posts.extend(fetch_reddit(brand))
     _log(f"Fetching complete: {len(all_posts)} total posts; running sentiment analysis...")
 
     if not all_posts:
