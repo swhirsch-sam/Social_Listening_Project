@@ -4,6 +4,7 @@ Social Listening - Brand Sentiment Analyzer
 """
 
 import time
+import json
 import re
 import anthropic
 from collections import Counter
@@ -355,32 +356,39 @@ def fetch_reddit(brand, context=''):
 
 
 def analyze_sentiment(posts):
+    """Classify all posts in a single batched Claude call for speed."""
+    if not posts:
+        return []
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
     results = []
-    for post in posts:
+    chunk_size = 100  # stay within max_tokens safely
+    for chunk_start in range(0, len(posts), chunk_size):
+        chunk = posts[chunk_start:chunk_start + chunk_size]
+        post_texts = '\n'.join(
+            f'{i + 1}. {post["content"][:300]}'
+            for i, post in enumerate(chunk)
+        )
+        prompt = (
+            'Classify the sentiment of each social media post below as positive, negative, or neutral. '
+            'Reply with ONLY a JSON array of strings in the same order, '
+            'e.g. [\"positive\",\"neutral\",\"negative\"]. No explanation.\n\n'
+            + post_texts
+        )
         try:
-            time.sleep(config.CLAUDE_DELAY_SECONDS)
             message = client.messages.create(
                 model=config.CLAUDE_MODEL,
-                max_tokens=100,
-                messages=[
-                    {
-                        'role': 'user',
-                        'content': (
-                            'Analyze the sentiment of this social media post. '
-                            'Reply with ONLY one word: positive, negative, or neutral.'
-                            + '\n\nPost: ' + post['content'][:300]
-                        ),
-                    }
-                ],
+                max_tokens=512,
+                messages=[{'role': 'user', 'content': prompt}],
             )
-            sentiment = message.content[0].text.strip().lower()
-            if sentiment not in ('positive', 'negative', 'neutral'):
-                sentiment = 'neutral'
-            results.append({**post, 'sentiment': sentiment})
+            sentiments = json.loads(message.content[0].text.strip())
         except Exception as e:
-            _log(f'Sentiment error: {e}')
-            results.append({**post, 'sentiment': 'neutral'})
+            _log(f'Sentiment batch error: {e}')
+            sentiments = []
+        for i, post in enumerate(chunk):
+            s = sentiments[i] if i < len(sentiments) else 'neutral'
+            if s not in ('positive', 'negative', 'neutral'):
+                s = 'neutral'
+            results.append({**post, 'sentiment': s})
     return results
 
 
