@@ -100,7 +100,19 @@ def fetch_tiktok(brand, context=''):
                 'platform': 'TikTok',
                 'author': (item.get('channel') or {}).get('username') or item.get('authorMeta', {}).get('name') or 'unknown',
                 'content': text[:500],
-                'url': item.get('webVideoUrl') or '',
+                'url': (
+                    item.get('webVideoUrl')
+                    or item.get('videoUrl')
+                    or item.get('shareUrl')
+                    or (
+                        'https://www.tiktok.com/@'
+                        + str((item.get('authorMeta') or {}).get('name') or (item.get('channel') or {}).get('username') or 'unknown')
+                        + '/video/'
+                        + str(item.get('id') or '')
+                        if item.get('id') else ''
+                    )
+                    or ''
+                ),
             })
     except Exception as e:
         source_warnings.append(f'TikTok: {e}')
