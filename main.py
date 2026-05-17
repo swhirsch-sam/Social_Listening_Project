@@ -326,8 +326,9 @@ def fetch_reddit(brand, context=''):
         run_input = {
             "searchQuery": query,
             "maxPostsPerSource": config.APIFY_MAX_RESULTS,
-            "afterDate": "2026-01-01",
-            "beforeDate": "2026-12-31",
+            "sort": "top",
+            "timeFilter": "year",
+            "includeComments": False,
         }
         _log(f"Reddit: starting run for '{query}'")
         run = client.actor(config.APIFY_REDDIT_ACTOR).call(
