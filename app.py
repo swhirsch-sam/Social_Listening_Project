@@ -205,16 +205,16 @@ if submitted:
 
             def progress_aware_log(line):
                 _ui_log(line)
-                if 'Step 1/4' in line:
-                    progress_bar.progress(10, text='Step 1/4: TikTok')
-                elif 'Step 2/4' in line:
-                    progress_bar.progress(30, text='Step 2/4: LinkedIn')
-                elif 'Step 3/4' in line:
-                    progress_bar.progress(50, text='Step 3/4: Twitter/X')
-                elif 'Step 4/4' in line:
-                    progress_bar.progress(70, text='Step 4/4: Reddit')
-                elif 'sentiment analysis' in line.lower() or 'Fetching complete' in line:
-                    progress_bar.progress(85, text='Running sentiment analysis...')
+                if 'Step 1/5' in line:
+                    progress_bar.progress(10, text='Step 1/5: Scraping TikTok...')
+                elif 'Step 2/5' in line:
+                    progress_bar.progress(25, text='Step 2/5: Scraping LinkedIn...')
+                elif 'Step 3/5' in line:
+                    progress_bar.progress(45, text='Step 3/5: Scraping Twitter/X...')
+                elif 'Step 4/5' in line:
+                    progress_bar.progress(60, text='Step 4/5: Scraping Reddit...')
+                elif 'Step 5/5' in line:
+                    progress_bar.progress(78, text='Step 5/5: Conducting sentiment analysis...')
 
             analyzer.set_log_callback(progress_aware_log)
             results = None
