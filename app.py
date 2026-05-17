@@ -13,8 +13,8 @@ st.set_page_config(
 
 st.title("Brand Sentiment Analyzer")
 st.markdown(
-    "Enter a brand name below. The app will scrape TikTok, LinkedIn, and the web "
-    "for recent mentions and determine whether sentiment is "
+    "Enter a brand name below. The app will scrape TikTok, LinkedIn, Instagram, "
+    "Twitter/X, and Reddit for recent mentions and determine whether sentiment is "
     "**positive**, **neutral**, or **negative**."
 )
 st.divider()
