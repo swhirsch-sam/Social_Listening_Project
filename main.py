@@ -382,18 +382,19 @@ def run_analysis(brand, context=''):
     global source_warnings
     source_warnings = []
     all_posts = []
-    _log('Step 1/4: TikTok')
+    _log('Step 1/5: TikTok')
     all_posts.extend(fetch_tiktok(brand, context))
-    _log('Step 2/4: LinkedIn')
+    _log('Step 2/5: LinkedIn')
     all_posts.extend(fetch_linkedin(brand, context))
-    _log('Step 3/4: Twitter/X')
+    _log('Step 3/5: Twitter/X')
     all_posts.extend(fetch_twitter(brand, context))
-    _log('Step 4/4: Reddit')
+    _log('Step 4/5: Reddit')
     all_posts.extend(fetch_reddit(brand, context))
     _log(f'Fetching complete: {len(all_posts)} posts')
     if not all_posts:
         detail = ' | '.join(source_warnings) if source_warnings else 'No content returned.'
         return {'error': f"No data found for '{brand}'. Details: {detail}"}
+    _log('Step 5/5: Conducting sentiment analysis...')
     analyzed = analyze_sentiment(all_posts)
     counts = {'positive': 0, 'negative': 0, 'neutral': 0}
     for post in analyzed:
