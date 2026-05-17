@@ -53,7 +53,15 @@ def render_results(brand_name, results):
 
     col_v, col_c, col_t = st.columns([2, 1, 1])
     col_v.markdown(sentiment_badge(overall), unsafe_allow_html=True)
-    col_c.metric('Confidence', f'{confidence:.0%}')
+    col_c.metric(
+        'Confidence',
+        f'{confidence:.0%}',
+        help=(
+            'The percentage of posts that matched the dominant sentiment. '
+            'e.g. 72% means 72 out of 100 posts were classified as the dominant sentiment. '
+            'A higher score = stronger, more consistent signal.'
+        ),
+    )
     col_t.metric('Posts Analyzed', total)
 
     if warnings:
