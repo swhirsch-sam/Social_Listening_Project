@@ -17,13 +17,11 @@ _log_callback = None
 
 
 def set_log_callback(fn):
-    """Register a function(str) to receive each progress log line. Pass None to clear."""
     global _log_callback
     _log_callback = fn
 
 
 def _log(msg):
-    """Print a timestamped progress line."""
     import sys
     ts = time.strftime("%H:%M:%S")
     line = f"[{ts}] {msg}"
@@ -52,8 +50,13 @@ _STOP_WORDS = {
 }
 
 
+def _search_query(brand, context):
+    if context and context.strip():
+        return brand.strip() + " " + context.strip()
+    return brand.strip()
+
+
 def extract_top_terms(posts, sentiment, brand, n=3):
-    """Return top-n frequent words from posts of the given sentiment."""
     brand_words = {w.lower() for w in brand.split()}
     word_counts = Counter()
     for post in posts:
@@ -67,27 +70,28 @@ def extract_top_terms(posts, sentiment, brand, n=3):
     return word_counts.most_common(n)
 
 
-def fetch_tiktok(brand):
+def fetch_tiktok(brand, context=""):
     global source_warnings
     if not config.ENABLE_TIKTOK:
         return []
     client = ApifyClient(config.APIFY_API_KEY)
     results = []
+    query = _search_query(brand, context)
     try:
         run_input = {
-            "keywords": [brand],
+            "keywords": [query],
             "maxItems": config.APIFY_MAX_RESULTS,
             "sortType": "RELEVANCE",
             "dateFrom": "2026-01-01",
             "dateTo": "2026-12-31",
         }
-        _log(f"TikTok: starting Apify run for '{brand}' (max {config.APIFY_MAX_RESULTS})")
+        _log(f"TikTok: starting run for '{query}'")
         run = client.actor(config.APIFY_TIKTOK_ACTOR).call(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
             wait_secs=600,
         )
-        _log(f"TikTok: run finished (datasetId={run.get('defaultDatasetId')})")
+        _log(f"TikTok: run finished")
         for item in client.dataset(run["defaultDatasetId"]).iterate_items():
             text = item.get("title") or item.get("text") or item.get("description") or ""
             if not text:
@@ -105,16 +109,17 @@ def fetch_tiktok(brand):
     return results
 
 
-def fetch_linkedin(brand):
+def fetch_linkedin(brand, context=""):
     global source_warnings
     if not config.ENABLE_LINKEDIN:
         return []
     client = ApifyClient(config.APIFY_API_KEY)
     results = []
+    query = _search_query(brand, context)
     try:
         search_url = (
             "https://www.linkedin.com/search/results/content/?keywords="
-            + quote_plus(brand)
+            + quote_plus(query)
             + "&datePosted=past-year"
         )
         run_input = {
@@ -124,13 +129,13 @@ def fetch_linkedin(brand):
             "startDate": "2026-01-01",
             "endDate": "2026-12-31",
         }
-        _log(f"LinkedIn: starting Apify run for '{brand}' (max {config.APIFY_MAX_RESULTS})")
+        _log(f"LinkedIn: starting run for '{query}'")
         run = client.actor(config.APIFY_LINKEDIN_ACTOR).call(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
             wait_secs=600,
         )
-        _log(f"LinkedIn: run finished (datasetId={run.get('defaultDatasetId')})")
+        _log(f"LinkedIn: run finished")
         for item in client.dataset(run["defaultDatasetId"]).iterate_items():
             text = item.get("text") or item.get("content") or item.get("commentary") or ""
             if not text:
@@ -148,67 +153,28 @@ def fetch_linkedin(brand):
     return results
 
 
-def fetch_instagram(brand):
-    global source_warnings
-    if not config.ENABLE_INSTAGRAM:
-        return []
-    client = ApifyClient(config.APIFY_API_KEY)
-    results = []
-    try:
-        hashtag = brand.replace(" ", "").lower()
-        run_input = {
-            "search": hashtag,
-            "searchType": "hashtag",
-            "searchLimit": 1,
-            "resultsType": "posts",
-            "resultsLimit": config.APIFY_MAX_RESULTS,
-            "onlyPostsNewerThan": "2026-01-01",
-        }
-        _log(f"Instagram: starting Apify run for '#{hashtag}' (max {config.APIFY_MAX_RESULTS})")
-        run = client.actor(config.APIFY_INSTAGRAM_ACTOR).call(
-            run_input=run_input,
-            max_items=config.APIFY_MAX_RESULTS,
-            wait_secs=600,
-        )
-        _log(f"Instagram: run finished (datasetId={run.get('defaultDatasetId')})")
-        for item in client.dataset(run["defaultDatasetId"]).iterate_items():
-            text = item.get("caption") or item.get("text") or ""
-            if not text:
-                continue
-            results.append({
-                "platform": "Instagram",
-                "author": item.get("ownerUsername") or item.get("ownerFullName") or "",
-                "content": text,
-                "url": item.get("url") or item.get("displayUrl") or "",
-            })
-    except Exception as e:
-        source_warnings.append(f"Instagram: {e}")
-        _log(f"Instagram: ERROR {e}")
-    _log(f"Instagram: collected {len(results)} items")
-    return results
-
-
-def fetch_twitter(brand):
+def fetch_twitter(brand, context=""):
     global source_warnings
     if not config.ENABLE_TWITTER:
         return []
     client = ApifyClient(config.APIFY_API_KEY)
     results = []
+    query = _search_query(brand, context)
     try:
         run_input = {
-            "searchTerms": [brand],
+            "searchTerms": [query],
             "maxItems": config.APIFY_MAX_RESULTS,
             "queryType": "Latest",
             "since": "2026-01-01",
             "until": "2026-12-31",
         }
-        _log(f"Twitter/X: starting Apify run for '{brand}' (max {config.APIFY_MAX_RESULTS})")
+        _log(f"Twitter/X: starting run for '{query}'")
         run = client.actor(config.APIFY_TWITTER_ACTOR).call(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
             wait_secs=600,
         )
-        _log(f"Twitter/X: run finished (datasetId={run.get('defaultDatasetId')})")
+        _log(f"Twitter/X: run finished")
         for item in client.dataset(run["defaultDatasetId"]).iterate_items():
             text = item.get("text") or item.get("fullText") or item.get("content") or ""
             if not text:
@@ -232,26 +198,27 @@ def fetch_twitter(brand):
     return results
 
 
-def fetch_reddit(brand):
+def fetch_reddit(brand, context=""):
     global source_warnings
     if not config.ENABLE_REDDIT:
         return []
     client = ApifyClient(config.APIFY_API_KEY)
     results = []
+    query = _search_query(brand, context)
     try:
         run_input = {
-            "searchQuery": brand,
+            "searchQuery": query,
             "maxPostsPerSource": config.APIFY_MAX_RESULTS,
             "afterDate": "2026-01-01",
             "beforeDate": "2026-12-31",
         }
-        _log(f"Reddit: starting Apify run for '{brand}' (max {config.APIFY_MAX_RESULTS})")
+        _log(f"Reddit: starting run for '{query}'")
         run = client.actor(config.APIFY_REDDIT_ACTOR).call(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
             wait_secs=600,
         )
-        _log(f"Reddit: run finished (datasetId={run.get('defaultDatasetId')})")
+        _log(f"Reddit: run finished")
         for item in client.dataset(run["defaultDatasetId"]).iterate_items():
             title = item.get("title") or ""
             body = item.get("body") or item.get("selftext") or item.get("text") or ""
@@ -301,22 +268,21 @@ def analyze_sentiment(posts):
     return results
 
 
-def run_analysis(brand):
+def run_analysis(brand, context=""):
     global source_warnings
     source_warnings = []
-    _log(f"=== run_analysis('{brand}') starting ===")
+    query = _search_query(brand, context)
+    _log(f"=== run_analysis: brand='{brand}' query='{query}' ===")
     all_posts = []
-    _log("Step 1/5: TikTok")
-    all_posts.extend(fetch_tiktok(brand))
-    _log("Step 2/5: LinkedIn")
-    all_posts.extend(fetch_linkedin(brand))
-    _log("Step 3/5: Instagram")
-    all_posts.extend(fetch_instagram(brand))
-    _log("Step 4/5: Twitter/X")
-    all_posts.extend(fetch_twitter(brand))
-    _log("Step 5/5: Reddit")
-    all_posts.extend(fetch_reddit(brand))
-    _log(f"Fetching complete: {len(all_posts)} total posts; running sentiment analysis...")
+    _log("Step 1/4: TikTok")
+    all_posts.extend(fetch_tiktok(brand, context))
+    _log("Step 2/4: LinkedIn")
+    all_posts.extend(fetch_linkedin(brand, context))
+    _log("Step 3/4: Twitter/X")
+    all_posts.extend(fetch_twitter(brand, context))
+    _log("Step 4/4: Reddit")
+    all_posts.extend(fetch_reddit(brand, context))
+    _log(f"Fetching complete: {len(all_posts)} posts")
     if not all_posts:
         detail = " | ".join(source_warnings) if source_warnings else "No content returned."
         return {"error": f"No data found for '{brand}'. Details: {detail}"}
@@ -341,6 +307,7 @@ def run_analysis(brand):
 
     return {
         "brand": brand,
+        "context": context,
         "total_posts": total,
         "overall_sentiment": dominant,
         "confidence": confidence,
