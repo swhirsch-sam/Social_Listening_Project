@@ -6,24 +6,26 @@
 import os
 
 # -- API Keys ---------------------------------------------------------------
-ANTHROPIC_API_KEY  = os.environ.get("ANTHROPIC_API_KEY", "")
-APIFY_API_KEY      = os.environ.get("APIFY_API_KEY", "")
-FIRECRAWL_API_KEY  = os.environ.get("FIRECRAWL_API_KEY", "")
-SERPER_API_KEY     = os.environ.get("SERPER_API_KEY", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+APIFY_API_KEY = os.environ.get("APIFY_API_KEY", "")
 
 # -- Apify actor IDs --------------------------------------------------------
-APIFY_TIKTOK_ACTOR   = "clockworks/tiktok-scraper"
+APIFY_TIKTOK_ACTOR = "clockworks/tiktok-scraper"
 APIFY_LINKEDIN_ACTOR = "harvestapi/linkedin-post-search"
+APIFY_INSTAGRAM_ACTOR = "apify/instagram-scraper"
+APIFY_TWITTER_ACTOR = "xquik/x-tweet-scraper"
+APIFY_REDDIT_ACTOR = "automation-lab/reddit-scraper"
 
 # -- Source toggles ---------------------------------------------------------
-ENABLE_TIKTOK     = True
-ENABLE_LINKEDIN   = True
-ENABLE_FIRECRAWL  = True   # toggle web search (now powered by Serper)
+ENABLE_TIKTOK = True
+ENABLE_LINKEDIN = True
+ENABLE_INSTAGRAM = True
+ENABLE_TWITTER = True
+ENABLE_REDDIT = True
 
 # -- Scraping limits (per source, per run) ----------------------------------
-APIFY_MAX_RESULTS      = 250   # max items per Apify actor run
-FIRECRAWL_MAX_RESULTS  = 250   # max web/news results per search
+APIFY_MAX_RESULTS = 150  # max items per Apify actor run
 
 # -- Claude model & rate-limit ----------------------------------------------
-CLAUDE_MODEL          = "claude-opus-4-5"
-CLAUDE_DELAY_SECONDS  = 0.5   # seconds to pause between Claude API calls
+CLAUDE_MODEL = "claude-opus-4-5"
+CLAUDE_DELAY_SECONDS = 0.5  # seconds to pause between Claude API calls
