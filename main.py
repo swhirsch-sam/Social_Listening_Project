@@ -232,7 +232,7 @@ def fetch_linkedin(brand, context=''):
             + '&datePosted=past-year'
         )
         run_input = {
-            "startUrls": [{"url": search_url}],
+            "urls": [search_url],
             "count": config.APIFY_MAX_RESULTS,
             "startDate": "2026-01-01",
             "endDate": "2026-12-31",
@@ -263,51 +263,45 @@ def fetch_linkedin(brand, context=''):
 
 def fetch_twitter(brand, context=''):
     """
-    Fetch tweets using ntscraper (free, no API key required).
-    Falls back gracefully to an empty list on any connection error
-    so the rest of the pipeline (Reddit, TikTok, etc.) can still finish.
+    Fetch tweets via Apify (kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest).
+    ntscraper was removed because public Nitter instances are unreliable.
     """
     global source_warnings
     if not config.ENABLE_TWITTER:
         return []
-    query = _search_query(brand, context)
+    client = ApifyClient(config.APIFY_API_KEY)
     results = []
+    query = _search_query(brand, context)
     try:
-        from ntscraper import Nitter
-        scraper = Nitter()
-        _log(f"Twitter/X: starting ntscraper fetch for '{query}'")
-        tweets = scraper.get_tweets(
-            query,
-            mode='term',
-            number=config.APIFY_MAX_RESULTS,
+        run_input = {
+            "searchTerms": [query],
+            "maxItems": config.APIFY_MAX_RESULTS,
+            "queryType": "Latest",
+            "since": "2026-01-01",
+            "until": "2026-12-31",
+        }
+        _log(f"Twitter/X: starting Apify run for '{query}'")
+        run = client.actor(config.APIFY_TWITTER_ACTOR).call(
+            run_input=run_input,
+            max_items=config.APIFY_MAX_RESULTS,
+            wait_secs=600,
         )
-        tweet_list = tweets.get('tweets', [])
-        _log(f'Twitter/X: fetched {len(tweet_list)} raw tweets')
-        for tweet in tweet_list:
-            text = (tweet.get('text') or '').strip()
-            if not text:
-                continue
-            date_str = tweet.get('date') or ''
-            if date_str and not date_str.startswith('2026'):
+        _log(f'Twitter/X: run finished')
+        for item in client.dataset(run['defaultDatasetId']).iterate_items():
+            text_val = item.get('text') or item.get('fullText') or item.get('content') or ''
+            if not text_val:
                 continue
             results.append({
                 'platform': 'Twitter/X',
-                'author': (tweet.get('user') or {}).get('username') or 'unknown',
-                'content': text[:500],
-                'url': tweet.get('link') or '',
+                'author': item.get('author', {}).get('userName') or item.get('username') or 'unknown',
+                'content': text_val[:500],
+                'url': item.get('url') or item.get('tweetUrl') or '',
             })
-    except ImportError:
-        msg = 'Twitter/X: ntscraper not installed; skipping'
-        source_warnings.append(msg)
-        _log(msg)
     except Exception as e:
-        msg = f'Twitter/X: ntscraper error - {e}'
-        source_warnings.append(msg)
-        _log(msg)
+        source_warnings.append(f'Twitter/X: {e}')
+        _log(f'Twitter/X: ERROR {e}')
     _log(f'Twitter/X: collected {len(results)} items')
     return results
-
-
 def fetch_reddit(brand, context=''):
     global source_warnings
     if not config.ENABLE_REDDIT:
