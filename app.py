@@ -13,14 +13,15 @@ st.set_page_config(
 )
 
 SENTIMENT_COLOR = {"positive": "#2ecc71", "neutral": "#f39c12", "negative": "#e74c3c"}
+SENTIMENT_LABEL = {"positive": "Positive", "neutral": "Neutral", "negative": "Negative"}
 
 
 def sentiment_badge(label):
     color = SENTIMENT_COLOR.get(label, "#888")
     return (
         '<span style="background:' + color + ';color:white;'
-        + 'padding:2px 10px;border-radius:12px;font-weight:bold">'
-        + label.upper() + "</span>"
+        + 'padding:4px 14px;border-radius:14px;font-weight:bold;font-size:1.05em">'
+        + SENTIMENT_LABEL.get(label, label.upper()) + "</span>"
     )
 
 
@@ -43,8 +44,13 @@ def render_results(brand_name, results):
     pos = summary.get("positive", 0)
     neu = summary.get("neutral", 0)
     neg = summary.get("negative", 0)
+    context = results.get("context", "")
 
-    st.markdown("### Overall Sentiment for **" + brand_name + "**")
+    if context:
+        st.markdown("### Sentiment for **" + brand_name + "** (" + context + ")")
+    else:
+        st.markdown("### Overall Sentiment for **" + brand_name + "**")
+
     col_v, col_c, col_t = st.columns([2, 1, 1])
     col_v.markdown(sentiment_badge(overall), unsafe_allow_html=True)
     col_c.metric("Confidence", f"{confidence:.0%}")
@@ -67,29 +73,36 @@ def render_results(brand_name, results):
         {"Count": [pos, neu, neg]},
         index=["Positive", "Neutral", "Negative"],
     )
-    st.bar_chart(chart_df)
+    st.bar_chart(chart_df, color=["#4a90d9"])
     st.divider()
 
     st.markdown("### Top Mentioned Terms")
     t_pos_col, t_neg_col = st.columns(2)
     pos_terms = results.get("top_positive_terms", [])
     neg_terms = results.get("top_negative_terms", [])
+
     with t_pos_col:
         st.markdown("**In Positive Posts**")
         if pos_terms:
             for rank, (word, count) in enumerate(pos_terms, 1):
+                pct = int(count / pos * 100) if pos else 0
                 s = "s" if count != 1 else ""
                 st.markdown(f"{rank}. **{word}** - {count} mention{s}")
+                st.progress(min(pct, 100))
         else:
             st.caption("Not enough positive posts.")
+
     with t_neg_col:
         st.markdown("**In Negative Posts**")
         if neg_terms:
             for rank, (word, count) in enumerate(neg_terms, 1):
+                pct = int(count / neg * 100) if neg else 0
                 s = "s" if count != 1 else ""
                 st.markdown(f"{rank}. **{word}** - {count} mention{s}")
+                st.progress(min(pct, 100))
         else:
             st.caption("Not enough negative posts.")
+
     st.divider()
 
     st.markdown("### By Platform")
@@ -111,7 +124,7 @@ def render_results(brand_name, results):
     st.divider()
 
     st.markdown("### Source Coverage")
-    sources = ["TikTok", "LinkedIn", "Twitter/X", "Reddit", "Instagram"]
+    sources = ["TikTok", "LinkedIn", "Twitter/X", "Reddit"]
     cov_cols = st.columns(len(sources))
     for i, src in enumerate(sources):
         found = platform_breakdown.get(src, {}).get("total", 0)
@@ -155,51 +168,80 @@ def render_results(brand_name, results):
             st.caption("Sentiment: " + senti.upper() + " | " + url_md)
 
 
-# ---------------------------------------------------------------------------
-# Main UI
-# ---------------------------------------------------------------------------
-
+# Header
 st.title("Brand Sentiment Analyzer")
 st.markdown(
-    "Enter a brand name below. The app will scrape TikTok, LinkedIn, "
-    "Twitter/X, and Reddit (Instagram temporarily disabled) for recent 2026 mentions "
-    "and determine whether overall sentiment is **positive**, **neutral**, or **negative**."
+    "Enter a brand name to scrape TikTok, LinkedIn, Twitter/X, and Reddit "
+    "for recent 2026 mentions and determine overall sentiment."
 )
 st.divider()
 
+# Input form
 with st.form("brand_form"):
     brand_name = st.text_input(
         label="Brand Name",
         placeholder="e.g. Nike, Airbnb, OpenAI...",
         help="Enter the brand or company name you want to analyze.",
     )
+    brand_context = st.text_input(
+        label="Context hint (optional)",
+        placeholder="e.g. car company, streaming service, sneaker brand...",
+        help=(
+            "Helps narrow results to the right brand. "
+            "For example: Tesla + car company searches for 'Tesla car company', "
+            "filtering out unrelated people or places sharing the name."
+        ),
+    )
     submitted = st.form_submit_button("Analyze Sentiment", use_container_width=True)
 
+# Run analysis
 if submitted:
     brand_name = brand_name.strip()
+    brand_context = brand_context.strip()
     if not brand_name:
         st.warning("Please enter a brand name before clicking Analyze.")
     else:
+        query_display = brand_name + (' + ' + brand_context if brand_context else '')
+        progress_bar = st.progress(0, text="Starting...")
         status = st.status(
-            f"Scraping data for '{brand_name}' and analyzing sentiment...",
+            f"Scraping '{query_display}'...",
             expanded=True,
         )
         log_box = status.empty()
         log_lines = []
         _ui_log = _ui_log_factory(log_lines, log_box)
-        analyzer.set_log_callback(_ui_log)
+
+        STEPS = ["TikTok", "LinkedIn", "Twitter/X", "Reddit", "Sentiment analysis"]
+
+        def progress_aware_log(line):
+            _ui_log(line)
+            if "Step 1/4" in line:
+                progress_bar.progress(10, text="Step 1/4: TikTok")
+            elif "Step 2/4" in line:
+                progress_bar.progress(30, text="Step 2/4: LinkedIn")
+            elif "Step 3/4" in line:
+                progress_bar.progress(50, text="Step 3/4: Twitter/X")
+            elif "Step 4/4" in line:
+                progress_bar.progress(70, text="Step 4/4: Reddit")
+            elif "sentiment analysis" in line.lower():
+                progress_bar.progress(85, text="Running sentiment analysis...")
+
+        analyzer.set_log_callback(progress_aware_log)
         results = None
         try:
-            results = analyzer.run_analysis(brand_name)
+            results = analyzer.run_analysis(brand_name, brand_context)
+            progress_bar.progress(100, text="Complete!")
             status.update(
-                label=f"Done analyzing '{brand_name}'",
+                label=f"Done analyzing '{query_display}'",
                 state="complete",
                 expanded=False,
             )
         except Exception as e:
+            progress_bar.empty()
             status.update(label=f"Run failed: {e}", state="error", expanded=True)
         finally:
             analyzer.set_log_callback(None)
+
         if results is not None:
             st.divider()
             render_results(brand_name, results)
