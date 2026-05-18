@@ -388,10 +388,8 @@ def analyze_sentiment(posts):
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
     results = []
     chunk_size = 50  # smaller chunks = shorter JSON response = no truncation risk
-    total_chunks = (len(posts) + chunk_size - 1) // chunk_size
     for chunk_idx, chunk_start in enumerate(range(0, len(posts), chunk_size)):
         chunk = posts[chunk_start:chunk_start + chunk_size]
-        _log(f'Sentiment: chunk {chunk_idx + 1}/{total_chunks} ({len(chunk)} posts)...')
         post_texts = '\n'.join(
             f'{i + 1}. {post["content"][:300]}'
             for i, post in enumerate(chunk)
@@ -419,7 +417,6 @@ def analyze_sentiment(posts):
             sentiments = json.loads(raw)
             if not isinstance(sentiments, list):
                 raise ValueError(f'Expected list, got {type(sentiments)}')
-            _log(f'Sentiment: chunk {chunk_idx + 1}/{total_chunks} done ({len(sentiments)} labels)')
         except Exception as e:
             _log(f'Sentiment batch error (chunk {chunk_idx + 1}): {e} — defaulting to neutral')
             sentiments = []
