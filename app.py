@@ -167,8 +167,9 @@ def render_results(brand_name, results):
         with st.expander(label):
             st.write(post['content'])
             url = post.get('url', '')
-            url_md = f'[View post]({url})' if url else 'No URL'
-            st.caption('Sentiment: ' + senti.upper() + ' | ' + url_md)
+            st.caption('Sentiment: ' + senti.upper())
+            if url:
+                st.markdown(f'[View post]({url})')
 
 
 # ── Header ────────────────────────────────────────────────────────────────
