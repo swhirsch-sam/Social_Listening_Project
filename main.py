@@ -4,6 +4,7 @@ Social Listening - Brand Sentiment Analyzer
 """
 
 import time
+import datetime
 import json
 import re
 import anthropic
@@ -309,8 +310,7 @@ def fetch_twitter(brand, context=''):
             "searchTerms": [query],
             "maxItems": config.APIFY_MAX_RESULTS,
             "queryType": "Latest",
-            "since": "2026-01-01",
-            "until": "2026-12-31",
+            "since":(datetime.date.today() - datetime.timedelta(days=365)).strftime('%Y-%m-%d'),
         }
         _log(f"Twitter/X: starting Apify run for '{query}'")
         run = client.actor(config.APIFY_TWITTER_ACTOR).call(
