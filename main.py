@@ -457,11 +457,11 @@ def run_analysis(brand, context=''):
     if not all_posts:
         detail = ' | '.join(source_warnings) if source_warnings else 'No content returned.'
         return {'error': f"No data found for '{brand}'. Details: {detail}"}
-    # --- relevance filter: drop posts that don't mention the brand ---
-    brand_terms = [t.strip().lower() for t in brand.lower().split() if len(t.strip()) > 2]
+    # --- relevance filter: post must contain the exact brand name ---
+    brand_phrase = brand.strip().lower()
     def _is_relevant(post):
         text = (post.get('content') or '').lower()
-        return any(term in text for term in brand_terms) if brand_terms else True
+        return brand_phrase in text
     _before = len(all_posts)
     all_posts = [p for p in all_posts if _is_relevant(p)]
     _dropped = _before - len(all_posts)
