@@ -222,7 +222,19 @@ def fetch_tiktok(brand, context=''):
                 'platform': 'TikTok',
                 'author': (item.get('channel') or {}).get('username') or item.get('authorMeta', {}).get('name') or 'unknown',
                 'content': text[:500],
-                'url': item.get('webVideoUrl') or '',
+                'url': (
+                    item.get('postPage')
+                    or item.get('webVideoUrl')
+                    or item.get('videoUrl')
+                    or item.get('url')
+                    or (
+                        'https://www.tiktok.com/@'
+                        + str((item.get('channel') or {}).get('username') or item.get('authorMeta', {}).get('name') or 'unknown')
+                        + '/video/'
+                        + str(item.get('id') or '')
+                        if item.get('id') else ''
+                    )
+                ),
             })
     except Exception as e:
         source_warnings.append(f'TikTok: {e}')
@@ -320,7 +332,7 @@ def fetch_twitter(brand, context=''):
                     or item.get('tweetUrl')
                     or (
                         'https://x.com/'
-                        + str(item.get('author') or item.get('username') or 'i')
+                        + str((item.get('author') or {}).get('userName') or item.get('username') or 'i')
                         + '/status/'
                         + str(item.get('id') or item.get('tweetId') or '')
                         if (item.get('id') or item.get('tweetId')) else ''
@@ -365,12 +377,13 @@ def fetch_reddit(brand, context=''):
                 'author': item.get('author') or 'unknown',
                 'content': text[:500],
                 'url': (
-                    item.get('url')
-                    or item.get('postUrl')
-                    or (
+                    (
                         'https://www.reddit.com' + item.get('permalink')
-                        if item.get('permalink') else ''
+                        if item.get('permalink') else None
                     )
+                    or item.get('postUrl')
+                    or item.get('url')
+                    or ''
                 ),
             })
     except Exception as e:
