@@ -79,10 +79,10 @@ def render_results(brand_name, results):
     c2.metric('Neutral',  neu)
     c3.metric('Negative', neg)
     fig = go.Figure(go.Bar(
-        x=['Negative', 'Neutral', 'Positive'],
-        y=[neg, neu, pos],
-        marker_color=['#e74c3c', '#f0ad4e', '#2ecc71'],
-        text=[neg, neu, pos],
+        x=['Positive', 'Neutral', 'Negative'],
+        y=[pos, neu, neg],
+        marker_color=['#2ecc71', '#f0ad4e', '#e74c3c'],
+        text=[pos, neu, neg],
         textposition='outside',
     ))
     fig.update_layout(
