@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
 import sys
 import os
 
@@ -77,11 +78,21 @@ def render_results(brand_name, results):
     c1.metric('Positive', pos)
     c2.metric('Neutral',  neu)
     c3.metric('Negative', neg)
-    chart_df = pd.DataFrame(
-        {'Count': [pos, neu, neg]},
-        index=['Positive', 'Neutral', 'Negative'],
+    fig = go.Figure(go.Bar(
+        x=['Negative', 'Neutral', 'Positive'],
+        y=[neg, neu, pos],
+        marker_color=['#e74c3c', '#f0ad4e', '#2ecc71'],
+        text=[neg, neu, pos],
+        textposition='outside',
+    ))
+    fig.update_layout(
+        yaxis_title='Posts',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(t=20, b=20),
+        yaxis=dict(gridcolor='rgba(128,128,128,0.2)'),
     )
-    st.bar_chart(chart_df, color=['#4a90d9'])
+    st.plotly_chart(fig, use_container_width=True)
     st.divider()
 
     # --- top terms ---
