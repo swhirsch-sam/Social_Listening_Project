@@ -165,7 +165,7 @@ def render_results(brand_name, results):
         senti = post.get('sentiment', 'neutral')
         label = '[' + (post.get('platform') or 'Unknown') + '] ' + (post.get('author') or 'Unknown')
         with st.expander(label):
-            st.write(post['content'])
+            st.write(post.get('content', ''))
             url = post.get('url', '')
             st.caption('Sentiment: ' + senti.upper())
             if url:
