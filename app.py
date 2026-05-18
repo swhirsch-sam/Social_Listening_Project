@@ -172,6 +172,12 @@ def render_results(brand_name, results):
                 st.markdown(f'[View post]({url})')
 
 
+# ── Session state ────────────────────────────────────────────────────────
+if 'results' not in st.session_state:
+    st.session_state['results'] = None
+if 'result_brand' not in st.session_state:
+    st.session_state['result_brand'] = ''
+
 # ── Header ────────────────────────────────────────────────────────────────
 st.title('Brand Sentiment Analyzer')
 st.markdown(
@@ -226,7 +232,6 @@ if submitted:
                     progress_bar.progress(78, text='Step 5/5: Conducting sentiment analysis...')
 
             analyzer.set_log_callback(progress_aware_log)
-            results = None
             try:
                 results = analyzer.run_analysis(brand_name, brand_context)
                 progress_bar.progress(100, text='Complete!')
@@ -235,10 +240,12 @@ if submitted:
                     state='complete',
                     expanded=False,
                 )
+                st.session_state['results'] = results
+                st.session_state['result_brand'] = brand_name
             except Exception as exc:
                 status.update(label='Analysis failed', state='error', expanded=True)
                 st.error(f'Unexpected error: {exc}')
-                results = None
 
-        if results is not None:
-            render_results(brand_name, results)
+# ── Render results (persists across reruns e.g. when filters change) ───────
+if st.session_state.get('results') is not None:
+    render_results(st.session_state['result_brand'], st.session_state['results'])
