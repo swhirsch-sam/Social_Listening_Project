@@ -213,28 +213,28 @@ if submitted:
     else:
         query_display = brand_name + (' + ' + brand_context if brand_context else '')
         log_lines = []
+        progress_bar = st.progress(0)
         with st.status(f'Analyzing \'{query_display}\'...', expanded=True) as status:
             log_box      = st.empty()
-            progress_bar = st.progress(0, text='Starting...')
             _ui_log      = _ui_log_factory(log_lines, log_box)
 
             def progress_aware_log(line):
                 _ui_log(line)
                 if 'Step 1/5' in line:
-                    progress_bar.progress(10, text='Step 1/5: Scraping TikTok...')
+                    progress_bar.progress(10)
                 elif 'Step 2/5' in line:
-                    progress_bar.progress(25, text='Step 2/5: Scraping LinkedIn...')
+                    progress_bar.progress(25)
                 elif 'Step 3/5' in line:
-                    progress_bar.progress(45, text='Step 3/5: Scraping Twitter/X...')
+                    progress_bar.progress(45)
                 elif 'Step 4/5' in line:
-                    progress_bar.progress(60, text='Step 4/5: Scraping Reddit...')
+                    progress_bar.progress(60)
                 elif 'Step 5/5' in line:
-                    progress_bar.progress(78, text='Step 5/5: Conducting sentiment analysis...')
+                    progress_bar.progress(78)
 
             analyzer.set_log_callback(progress_aware_log)
             try:
                 results = analyzer.run_analysis(brand_name, brand_context)
-                progress_bar.progress(100, text='Complete!')
+                progress_bar.progress(100)
                 status.update(
                     label=f'Done analyzing \'{query_display}\'',
                     state='complete',
