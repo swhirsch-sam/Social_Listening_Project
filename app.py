@@ -147,7 +147,7 @@ def render_results(brand_name, results):
             key='filter_sentiment',
         )
     with filter_col2:
-        all_platforms = sorted({p['platform'] for p in results.get('posts', [])})
+        all_platforms = sorted({p.get('platform', 'Unknown') for p in results.get('posts', [])})
         filter_platform = st.selectbox(
             'Filter by platform',
             ['All'] + all_platforms,
@@ -156,14 +156,14 @@ def render_results(brand_name, results):
 
     posts_to_show = list(results.get('posts', []))
     if filter_sentiment != 'All':
-        posts_to_show = [p for p in posts_to_show if p['sentiment'] == filter_sentiment.lower()]
+        posts_to_show = [p for p in posts_to_show if (p.get('sentiment') or '').lower() == filter_sentiment.lower()]
     if filter_platform != 'All':
-        posts_to_show = [p for p in posts_to_show if p['platform'] == filter_platform]
+        posts_to_show = [p for p in posts_to_show if p.get('platform') == filter_platform]
 
     st.caption(f'Showing {len(posts_to_show)} of {total} posts')
     for post in posts_to_show:
-        senti = post['sentiment']
-        label = '[' + post['platform'] + '] ' + (post.get('author') or 'Unknown')
+        senti = post.get('sentiment', 'neutral')
+        label = '[' + (post.get('platform') or 'Unknown') + '] ' + (post.get('author') or 'Unknown')
         with st.expander(label):
             st.write(post['content'])
             url = post.get('url', '')
