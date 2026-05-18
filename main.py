@@ -382,13 +382,16 @@ def fetch_reddit(brand, context=''):
 
 def analyze_sentiment(posts):
     """Classify all posts in a single batched Claude call for speed."""
+    import re as _re
     if not posts:
         return []
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
     results = []
-    chunk_size = 100  # stay within max_tokens safely
-    for chunk_start in range(0, len(posts), chunk_size):
+    chunk_size = 50  # smaller chunks = shorter JSON response = no truncation risk
+    total_chunks = (len(posts) + chunk_size - 1) // chunk_size
+    for chunk_idx, chunk_start in enumerate(range(0, len(posts), chunk_size)):
         chunk = posts[chunk_start:chunk_start + chunk_size]
+        _log(f'Sentiment: chunk {chunk_idx + 1}/{total_chunks} ({len(chunk)} posts)...')
         post_texts = '\n'.join(
             f'{i + 1}. {post["content"][:300]}'
             for i, post in enumerate(chunk)
@@ -396,18 +399,29 @@ def analyze_sentiment(posts):
         prompt = (
             'Classify the sentiment of each social media post below as positive, negative, or neutral. '
             'Reply with ONLY a JSON array of strings in the same order, '
-            'e.g. [\"positive\",\"neutral\",\"negative\"]. No explanation.\n\n'
+            'e.g. ["positive","neutral","negative"]. No explanation, no markdown.\n\n'
             + post_texts
         )
+        sentiments = []
         try:
+            # max_tokens: each label ~12 chars, 50 posts = ~600 chars; use 1024 for headroom
             message = client.messages.create(
                 model=config.CLAUDE_MODEL,
-                max_tokens=512,
+                max_tokens=1024,
                 messages=[{'role': 'user', 'content': prompt}],
             )
-            sentiments = json.loads(message.content[0].text.strip())
+            raw = message.content[0].text.strip()
+            # Strip markdown fences if Claude wraps the array
+            raw = _re.sub(r'```[a-z]*\n?', '', raw).strip()
+            # Extract just the JSON array in case there is surrounding text
+            m = _re.search(r'\[.*?\]', raw, _re.DOTALL)
+            raw = m.group(0) if m else raw
+            sentiments = json.loads(raw)
+            if not isinstance(sentiments, list):
+                raise ValueError(f'Expected list, got {type(sentiments)}')
+            _log(f'Sentiment: chunk {chunk_idx + 1}/{total_chunks} done ({len(sentiments)} labels)')
         except Exception as e:
-            _log(f'Sentiment batch error: {e}')
+            _log(f'Sentiment batch error (chunk {chunk_idx + 1}): {e} — defaulting to neutral')
             sentiments = []
         for i, post in enumerate(chunk):
             s = sentiments[i] if i < len(sentiments) else 'neutral'
@@ -455,6 +469,7 @@ def run_analysis(brand, context=''):
 
     return {
         'brand': brand,
+        'context': context,
         'total': total,
         'counts': counts,
         'dominant': dominant,
@@ -463,4 +478,5 @@ def run_analysis(brand, context=''):
         'platform_breakdown': platform_breakdown,
         'top_positive_terms': top_positive,
         'top_negative_terms': top_negative,
-}
+        'warnings': source_warnings[:],
+    }
