@@ -55,6 +55,20 @@ def _search_query(brand, context):
     return f'"{base}"'
 
 
+def _is_english(text):
+    """Return True if text appears to be English (predominantly ASCII, min 4 words).
+    Uses no external libraries — works by checking the ratio of non-ASCII characters.
+    """
+    if not text or not text.strip():
+        return False
+    words = text.split()
+    if len(words) < 4:
+        return False  # too short / spam
+    non_ascii = sum(1 for ch in text if ord(ch) > 127)
+    ratio = non_ascii / len(text)
+    return ratio < 0.3  # >70% ASCII → likely English
+
+
 def extract_top_terms(posts, sentiment, brand, n=3):
     """Return top-n words from posts of a given sentiment."""
     words = []
@@ -325,6 +339,7 @@ def fetch_twitter(brand, context=''):
             "searchTerms": [query],
             "maxItems": config.APIFY_MAX_RESULTS,
             "queryType": "Latest",
+            "lang": "en",
             "since":(datetime.date.today() - datetime.timedelta(days=365)).strftime('%Y-%m-%d'),
         }
         _log(f"Twitter/X: starting Apify run for '{query}'")
@@ -476,6 +491,12 @@ def run_analysis(brand, context=''):
     _log('Step 4/5: Reddit')
     all_posts.extend(fetch_reddit(brand, context))
     _log(f'Fetching complete: {len(all_posts)} posts')
+    # --- English / spam filter ---
+    _before_lang = len(all_posts)
+    all_posts = [p for p in all_posts if _is_english(p.get('content', ''))]
+    _lang_dropped = _before_lang - len(all_posts)
+    if _lang_dropped:
+        _log(f'Language filter: dropped {_lang_dropped} non-English/spam posts; {len(all_posts)} remain')
     if not all_posts:
         detail = ' | '.join(source_warnings) if source_warnings else 'No content returned.'
         return {'error': f"No data found for '{brand}'. Details: {detail}"}
