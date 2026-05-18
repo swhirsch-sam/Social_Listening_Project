@@ -95,7 +95,16 @@ def fetch_tiktok(brand, context=''):
         )
         _log(f'TikTok: run finished')
         for item in client.dataset(run['defaultDatasetId']).iterate_items():
-            text = item.get('title') or item.get('text') or item.get('description') or ''
+            parts = [
+                item.get('title') or '',
+                item.get('text') or '',
+                item.get('description') or '',
+                ' '.join(
+                    h.get('name', '') if isinstance(h, dict) else str(h)
+                    for h in (item.get('hashtags') or item.get('challenges') or [])
+                ),
+            ]
+            text = ' '.join(p for p in parts if p).strip()
             if not text:
                 continue
             results.append({
@@ -271,7 +280,14 @@ def fetch_linkedin(brand, context=''):
         )
         _log(f'LinkedIn: run finished')
         for item in client.dataset(run['defaultDatasetId']).iterate_items():
-            text = item.get('text') or item.get('content') or item.get('description') or ''
+            parts = [
+                item.get('title') or '',
+                item.get('text') or '',
+                item.get('content') or '',
+                item.get('description') or '',
+                item.get('subtitle') or '',
+            ]
+            text = ' '.join(p for p in parts if p).strip()
             if not text:
                 continue
             results.append({
@@ -320,7 +336,14 @@ def fetch_twitter(brand, context=''):
         )
         _log(f'Twitter/X: run finished')
         for item in client.dataset(run['defaultDatasetId']).iterate_items():
-            text_val = item.get('text') or item.get('fullText') or item.get('content') or ''
+            parts = [
+                item.get('text') or '',
+                item.get('fullText') or '',
+                item.get('content') or '',
+                (item.get('quotedTweet') or {}).get('text') or '',
+                (item.get('retweetedTweet') or {}).get('text') or '',
+            ]
+            text_val = ' '.join(p for p in parts if p).strip()
             if not text_val:
                 continue
             results.append({
