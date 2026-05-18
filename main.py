@@ -265,7 +265,14 @@ def fetch_linkedin(brand, context=''):
                 'platform': 'LinkedIn',
                 'author': item.get('author') or item.get('name') or 'unknown',
                 'content': text[:500],
-                'url': item.get('url') or item.get('postUrl') or '',
+                'url': (
+                    item.get('postUrl')
+                    or item.get('url')
+                    or (
+                        'https://www.linkedin.com/feed/update/' + item.get('postId')
+                        if item.get('postId') else ''
+                    )
+                ),
             })
     except Exception as e:
         source_warnings.append(f'LinkedIn: {e}')
@@ -308,7 +315,17 @@ def fetch_twitter(brand, context=''):
                 'platform': 'Twitter/X',
                 'author': item.get('author', {}).get('userName') or item.get('username') or 'unknown',
                 'content': text_val[:500],
-                'url': item.get('url') or item.get('tweetUrl') or '',
+                'url': (
+                    item.get('url')
+                    or item.get('tweetUrl')
+                    or (
+                        'https://x.com/'
+                        + str(item.get('author') or item.get('username') or 'i')
+                        + '/status/'
+                        + str(item.get('id') or item.get('tweetId') or '')
+                        if (item.get('id') or item.get('tweetId')) else ''
+                    )
+                ),
             })
     except Exception as e:
         source_warnings.append(f'Twitter/X: {e}')
@@ -347,7 +364,14 @@ def fetch_reddit(brand, context=''):
                 'platform': 'Reddit',
                 'author': item.get('author') or 'unknown',
                 'content': text[:500],
-                'url': item.get('url') or item.get('postUrl') or '',
+                'url': (
+                    item.get('url')
+                    or item.get('postUrl')
+                    or (
+                        'https://www.reddit.com' + item.get('permalink')
+                        if item.get('permalink') else ''
+                    )
+                ),
             })
     except Exception as e:
         source_warnings.append(f'Reddit: {e}')
