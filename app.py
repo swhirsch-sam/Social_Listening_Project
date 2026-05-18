@@ -148,40 +148,53 @@ def render_results(brand_name, results):
         cov_cols[i].metric(src, found if found else '0')
     st.divider()
 
-    # --- individual posts ---
+    # --- individual posts (platform tabs) ---
     st.markdown('### Individual Post Breakdown')
-    filter_col1, filter_col2 = st.columns(2)
-    with filter_col1:
-        filter_sentiment = st.selectbox(
-            'Filter by sentiment',
-            ['All', 'Positive', 'Neutral', 'Negative'],
-            key='filter_sentiment',
-        )
-    with filter_col2:
-        all_platforms = sorted({p.get('platform', 'Unknown') for p in results.get('posts', [])})
-        filter_platform = st.selectbox(
-            'Filter by platform',
-            ['All'] + all_platforms,
-            key='filter_platform',
-        )
 
-    posts_to_show = list(results.get('posts', []))
-    if filter_sentiment != 'All':
-        posts_to_show = [p for p in posts_to_show if (p.get('sentiment') or '').lower() == filter_sentiment.lower()]
-    if filter_platform != 'All':
-        posts_to_show = [p for p in posts_to_show if p.get('platform') == filter_platform]
+    all_posts = list(results.get('posts', []))
 
-    st.caption(f'Showing {len(posts_to_show)} of {total} posts')
-    for post in posts_to_show:
-        senti = post.get('sentiment', 'neutral')
-        label = '[' + (post.get('platform') or 'Unknown') + '] ' + (post.get('author') or 'Unknown')
-        with st.expander(label):
-            st.write(post.get('content', ''))
-            url = post.get('url', '')
-            st.caption('Sentiment: ' + senti.upper())
-            if url:
-                st.markdown(f'[View post]({url})')
+    # Sentinel filter: drop posts missing both content and url (malformed entries)
+    all_posts = [p for p in all_posts if isinstance(p, dict)]
 
+    # Build platform groups
+    platform_names = ['TikTok', 'LinkedIn', 'Twitter/X', 'Reddit']
+    platform_posts = {pl: [p for p in all_posts if (p.get('platform') or '') == pl]
+                      for pl in platform_names}
+
+    # Sentiment filter (applies within the selected platform tab)
+    sentiment_filter = st.selectbox(
+        'Filter by sentiment',
+        ['All', 'Positive', 'Neutral', 'Negative'],
+        key='filter_sentiment',
+    )
+
+    tab_labels = [f"{pl} ({len(platform_posts[pl])})" for pl in platform_names]
+    tabs = st.tabs(tab_labels)
+
+    for tab, pl in zip(tabs, platform_names):
+        with tab:
+            posts = platform_posts[pl]
+            if sentiment_filter != 'All':
+                posts = [p for p in posts if (p.get('sentiment') or '').lower() == sentiment_filter.lower()]
+            if not posts:
+                st.info(f'No {sentiment_filter.lower() if sentiment_filter != "All" else ""} posts found for {pl}.')
+            else:
+                st.caption(f'Showing {len(posts)} post(s)')
+                for post in posts:
+                    try:
+                        senti  = str(post.get('sentiment') or 'neutral')
+                        author = str(post.get('author')    or 'Unknown')
+                        plat   = str(post.get('platform')  or pl)
+                        content = str(post.get('content')  or '')
+                        url    = str(post.get('url')        or '')
+                        label  = f'[{plat}] {author}'
+                        with st.expander(label):
+                            st.write(content)
+                            st.caption('Sentiment: ' + senti.upper())
+                            if url:
+                                st.markdown(f'[View post]({url})')
+                    except Exception as e:
+                        st.warning(f'Could not render a post: {e}')
 
 # ── Session state ────────────────────────────────────────────────────────
 if 'results' not in st.session_state:
