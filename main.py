@@ -50,10 +50,9 @@ _STOP_WORDS = {
 
 
 def _search_query(brand, context):
-    """Append context hint to brand so search is more specific."""
-    if context and context.strip():
-        return f'{brand} {context.strip()}'
-    return brand
+    """Build an exact-phrase search query so APIs don't match individual words."""
+    base = f'{brand} {context.strip()}' if (context and context.strip()) else brand
+    return f'"{base}"'
 
 
 def extract_top_terms(posts, sentiment, brand, n=3):
@@ -378,7 +377,7 @@ def fetch_reddit(brand, context=''):
         run_input = {
             "searchQuery": query,
             "maxPostsPerSource": config.APIFY_MAX_RESULTS,
-            "sort": "top",
+            "sort": "relevance",
             "timeFilter": "year",
             "includeComments": False,
         }
@@ -480,18 +479,6 @@ def run_analysis(brand, context=''):
     if not all_posts:
         detail = ' | '.join(source_warnings) if source_warnings else 'No content returned.'
         return {'error': f"No data found for '{brand}'. Details: {detail}"}
-    # --- relevance filter: post must contain the exact brand name ---
-    brand_phrase = brand.strip().lower()
-    def _is_relevant(post):
-        text = (post.get('content') or '').lower()
-        return brand_phrase in text
-    _before = len(all_posts)
-    all_posts = [p for p in all_posts if _is_relevant(p)]
-    _dropped = _before - len(all_posts)
-    if _dropped:
-        _log(f'Relevance filter: dropped {_dropped} off-brand posts; {len(all_posts)} remain')
-    if not all_posts:
-        return {'error': f"No relevant posts found for '{brand}' after filtering {_before} fetched posts."}
     _log('Step 5/5: Conducting sentiment analysis...')
     analyzed = analyze_sentiment(all_posts)
     counts = {'positive': 0, 'negative': 0, 'neutral': 0}
