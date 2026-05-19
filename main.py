@@ -49,10 +49,9 @@ _STOP_WORDS = {
 }
 
 
-def _search_query(brand, context):
+def _search_query(brand):
     """Build an exact-phrase search query so APIs don't match individual words."""
-    base = f'{brand} {context.strip()}' if (context and context.strip()) else brand
-    return f'"{base}"'
+    return f'"{brand}"'
 
 
 def _is_english(text):
@@ -85,13 +84,13 @@ def extract_top_terms(posts, sentiment, brand, n=3):
     return [word for word, _ in Counter(words).most_common(n)]
 
 
-def fetch_tiktok(brand, context=''):
+def fetch_tiktok(brand):
     global source_warnings
     if not config.ENABLE_TIKTOK:
         return []
     client = ApifyClient(config.APIFY_API_KEY)
     results = []
-    query = _search_query(brand, context)
+    query = _search_query(brand)
     try:
         run_input = {
             "keywords": [query],
@@ -192,13 +191,6 @@ _STOP_WORDS = {
 }
 
 
-def _search_query(brand, context):
-    """Append context hint to brand so search is more specific."""
-    if context and context.strip():
-        return f'{brand} {context.strip()}'
-    return brand
-
-
 def extract_top_terms(posts, sentiment, brand, n=3):
     """Return top-n words from posts of a given sentiment."""
     words = []
@@ -215,13 +207,13 @@ def extract_top_terms(posts, sentiment, brand, n=3):
     return [word for word, _ in Counter(words).most_common(n)]
 
 
-def fetch_tiktok(brand, context=''):
+def fetch_tiktok(brand):
     global source_warnings
     if not config.ENABLE_TIKTOK:
         return []
     client = ApifyClient(config.APIFY_API_KEY)
     results = []
-    query = _search_query(brand, context)
+    query = _search_query(brand)
     try:
         run_input = {
             "keywords": [query],
@@ -266,13 +258,13 @@ def fetch_tiktok(brand, context=''):
     return results
 
 
-def fetch_linkedin(brand, context=''):
+def fetch_linkedin(brand):
     global source_warnings
     if not config.ENABLE_LINKEDIN:
         return []
     client = ApifyClient(config.APIFY_API_KEY)
     results = []
-    query = _search_query(brand, context)
+    query = _search_query(brand)
     try:
         search_url = (
             'https://www.linkedin.com/search/results/content/?keywords='
@@ -323,7 +315,7 @@ def fetch_linkedin(brand, context=''):
     return results
 
 
-def fetch_twitter(brand, context=''):
+def fetch_twitter(brand):
     """
     Fetch tweets via Apify (kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest).
     ntscraper was removed because public Nitter instances are unreliable.
@@ -333,7 +325,7 @@ def fetch_twitter(brand, context=''):
         return []
     client = ApifyClient(config.APIFY_API_KEY)
     results = []
-    query = _search_query(brand, context)
+    query = _search_query(brand)
     try:
         run_input = {
             "searchTerms": [query],
@@ -381,13 +373,13 @@ def fetch_twitter(brand, context=''):
         _log(f'Twitter/X: ERROR {e}')
     _log(f'Twitter/X: collected {len(results)} items')
     return results
-def fetch_reddit(brand, context=''):
+def fetch_reddit(brand):
     global source_warnings
     if not config.ENABLE_REDDIT:
         return []
     client = ApifyClient(config.APIFY_API_KEY)
     results = []
-    query = _search_query(brand, context)
+    query = _search_query(brand)
     try:
         run_input = {
             "searchQuery": query,
@@ -478,18 +470,18 @@ def analyze_sentiment(posts):
     return results
 
 
-def run_analysis(brand, context=''):
+def run_analysis(brand):
     global source_warnings
     source_warnings = []
     all_posts = []
     _log('Step 1/5: TikTok')
-    all_posts.extend(fetch_tiktok(brand, context))
+    all_posts.extend(fetch_tiktok(brand))
     _log('Step 2/5: LinkedIn')
-    all_posts.extend(fetch_linkedin(brand, context))
+    all_posts.extend(fetch_linkedin(brand))
     _log('Step 3/5: Twitter/X')
-    all_posts.extend(fetch_twitter(brand, context))
+    all_posts.extend(fetch_twitter(brand))
     _log('Step 4/5: Reddit')
-    all_posts.extend(fetch_reddit(brand, context))
+    all_posts.extend(fetch_reddit(brand))
     _log(f'Fetching complete: {len(all_posts)} posts')
     # --- English / spam filter ---
     _before_lang = len(all_posts)
@@ -522,7 +514,6 @@ def run_analysis(brand, context=''):
 
     return {
         'brand': brand,
-        'context': context,
         'total': total,
         'counts': counts,
         'dominant': dominant,
