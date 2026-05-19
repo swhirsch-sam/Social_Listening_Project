@@ -43,14 +43,10 @@ def render_results(brand_name, results):
     pos         = counts.get('positive', 0)
     neu         = counts.get('neutral',  0)
     neg         = counts.get('negative', 0)
-    context     = results.get('context', '')
     warnings    = results.get('warnings', [])
 
     # --- header ---
-    if context:
-        st.markdown('### Sentiment for **' + brand_name + '** (' + context + ')')
-    else:
-        st.markdown('### Overall Sentiment for **' + brand_name + '**')
+    st.markdown('### Overall Sentiment for **' + brand_name + '**')
 
     col_v, col_c, col_t = st.columns([2, 1, 1])
     col_v.markdown(sentiment_badge(overall), unsafe_allow_html=True)
@@ -217,25 +213,15 @@ with st.form('brand_form'):
         placeholder='e.g. Nike, Airbnb, OpenAI...',
         help='Enter the brand or company name you want to analyze.',
     )
-    brand_context = st.text_input(
-        label='Context hint (optional)',
-        placeholder='e.g. car company, streaming service, sneaker brand...',
-        help=(
-            'Helps narrow results to the right brand. '
-            'For example: Tesla + car company searches for \'Tesla car company\', '
-            'filtering out unrelated people or places sharing the name.'
-        ),
-    )
     submitted = st.form_submit_button('Analyze Sentiment', use_container_width=True)
 
 # ── Run analysis ──────────────────────────────────────────────────────────
 if submitted:
     brand_name    = brand_name.strip()
-    brand_context = brand_context.strip()
     if not brand_name:
         st.warning('Please enter a brand name before clicking Analyze.')
     else:
-        query_display = brand_name + (' + ' + brand_context if brand_context else '')
+        query_display = brand_name
         log_lines = []
         progress_bar = st.progress(0)
         with st.status(f'Analyzing \'{query_display}\'...', expanded=True) as status:
@@ -257,7 +243,7 @@ if submitted:
 
             analyzer.set_log_callback(progress_aware_log)
             try:
-                results = analyzer.run_analysis(brand_name, brand_context)
+                results = analyzer.run_analysis(brand_name)
                 progress_bar.progress(100)
                 status.update(
                     label=f'Done analyzing \'{query_display}\'',
