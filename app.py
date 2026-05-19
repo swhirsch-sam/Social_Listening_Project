@@ -36,10 +36,10 @@ def render_results(brand_name, results):
         return
 
     # --- pull keys using the names main.py actually returns ---
-    overall     = results['dominant']          # was 'overall_sentiment'
-    confidence  = results['confidence']
-    total       = results['total']             # was 'total_posts'
-    counts      = results['counts']            # was 'sentiment_summary'
+    overall     = results.get('dominant', 'neutral')
+    confidence  = results.get('confidence', 0.0)
+    total       = results.get('total', 0)
+    counts      = results.get('counts', {})
     pos         = counts.get('positive', 0)
     neu         = counts.get('neutral',  0)
     neg         = counts.get('negative', 0)
@@ -128,10 +128,10 @@ def render_results(brand_name, results):
         for platform, pdata in platform_breakdown.items():
             rows.append({
                 'Platform': platform,
-                'Total': pdata['total'],
-                'Positive': pdata['positive'],
-                'Neutral':  pdata['neutral'],
-                'Negative': pdata['negative'],
+                'Total':    pdata.get('total', 0),
+                'Positive': pdata.get('positive', 0),
+                'Neutral':  pdata.get('neutral', 0),
+                'Negative': pdata.get('negative', 0),
             })
         plat_df = pd.DataFrame(rows).set_index('Platform')
         st.dataframe(plat_df, use_container_width=True)
