@@ -315,8 +315,8 @@ def render_results(brand_name: str, results: dict):
                         st.markdown("##### Posts by Platform")
                         st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
 
-                    # ── Topic chips ────────────────────────────────────────────────────────────
-                    key_topics = results.get("key_topics", [])
+        # ── Topic chips ────────────────────────────────────────────────────────────
+        key_topics = results.get("key_topics", [])
         if key_topics:
                 st.markdown("##### Top Topics")
                 chip_html = " ".join(
