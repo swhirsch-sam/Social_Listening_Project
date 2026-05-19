@@ -7,453 +7,324 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import main as analyzer
 
-# ── Brand palette ──────────────────────────────────────────────────────────────
-BRAND = {
-        "primary":    "#6C63FF",   # indigo-violet
-        "secondary":  "#F5F3FF",   # lavender tint
-        "positive":   "#10B981",   # emerald
-        "negative":   "#EF4444",   # rose-red
-        "neutral":    "#F59E0B",   # amber
-        "bg_card":    "#FFFFFF",
-        "text_dark":  "#1F1B4E",
-        "text_muted": "#6B7280",
-}
 
-# ── Global CSS injection ────────────────────────────────────────────────────────
-def inject_global_css():
-        st.markdown(
-                    f"""
-                            <style>
-                                    /* ---------- Google Font (Inter) ---------- */
-                                            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
-                                                    html, body, [class*="css"] {{
-                                                                font-family: 'Inter', sans-serif;
-                                                                        }}
-
-                                                                                /* ---------- Page background ---------- */
-                                                                                        .stApp {{
-                                                                                                    background: linear-gradient(135deg, #F5F3FF 0%, #EEF2FF 100%);
-                                                                                                            }}
-                                                                                                            
-                                                                                                                    /* ---------- Sidebar ---------- */
-                                                                                                                            [data-testid="stSidebar"] {{
-                                                                                                                                        background: {BRAND['text_dark']};
-                                                                                                                                                }}
-                                                                                                                                                        [data-testid="stSidebar"] * {{
-                                                                                                                                                                    color: #E0D9FF !important;
-                                                                                                                                                                            }}
-                                                                                                                                                                                    [data-testid="stSidebar"] .stTextInput > div > input,
-                                                                                                                                                                                            [data-testid="stSidebar"] .stSelectbox > div {{
-                                                                                                                                                                                                        background: #2D2760 !important;
-                                                                                                                                                                                                                    color: #E0D9FF !important;
-                                                                                                                                                                                                                                border: 1px solid #6C63FF !important;
-                                                                                                                                                                                                                                            border-radius: 8px !important;
-                                                                                                                                                                                                                                                    }}
-                                                                                                                                                                                                                                                    
-                                                                                                                                                                                                                                                            /* ---------- Primary button ---------- */
-                                                                                                                                                                                                                                                                    .stButton > button {{
-                                                                                                                                                                                                                                                                                background: linear-gradient(135deg, {BRAND['primary']}, #8B5CF6) !important;
-                                                                                                                                                                                                                                                                                            color: white !important;
-                                                                                                                                                                                                                                                                                                        border: none !important;
-                                                                                                                                                                                                                                                                                                                    border-radius: 12px !important;
-                                                                                                                                                                                                                                                                                                                                font-weight: 600 !important;
-                                                                                                                                                                                                                                                                                                                                            font-size: 1rem !important;
-                                                                                                                                                                                                                                                                                                                                                        padding: 0.65rem 2rem !important;
-                                                                                                                                                                                                                                                                                                                                                                    transition: transform 0.15s, box-shadow 0.15s !important;
-                                                                                                                                                                                                                                                                                                                                                                                box-shadow: 0 4px 14px rgba(108,99,255,0.35) !important;
-                                                                                                                                                                                                                                                                                                                                                                                        }}
-                                                                                                                                                                                                                                                                                                                                                                                                .stButton > button:hover {{
-                                                                                                                                                                                                                                                                                                                                                                                                            transform: translateY(-2px) !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                        box-shadow: 0 8px 20px rgba(108,99,255,0.45) !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                                                                                                                                                                                                        /* ---------- Metric cards ---------- */
-                                                                                                                                                                                                                                                                                                                                                                                                                                                [data-testid="stMetric"] {{
-                                                                                                                                                                                                                                                                                                                                                                                                                                                            background: {BRAND['bg_card']};
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                        border-radius: 14px;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    padding: 1.1rem 1.4rem;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                box-shadow: 0 2px 12px rgba(108,99,255,0.08);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            border: 1px solid #E5E1FF;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            [data-testid="stMetricLabel"] {{
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        color: {BRAND['text_muted']} !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    font-size: 0.8rem !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                font-weight: 600 !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            text-transform: uppercase !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        letter-spacing: 0.04em !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        [data-testid="stMetricValue"] {{
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    color: {BRAND['text_dark']} !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                font-size: 2rem !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            font-weight: 800 !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            /* ---------- Expander ---------- */
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    [data-testid="stExpander"] {{
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                background: {BRAND['bg_card']};
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            border: 1px solid #E5E1FF !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        border-radius: 12px !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        /* ---------- DataTable ---------- */
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                [data-testid="stDataFrame"] {{
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            border-radius: 12px;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        overflow: hidden;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    /* ---------- Headers ---------- */
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            h1 {{ color: {BRAND['text_dark']}; font-weight: 800; letter-spacing: -0.03em; }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    h2 {{ color: {BRAND['text_dark']}; font-weight: 700; }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            h3 {{ color: {BRAND['text_dark']}; font-weight: 600; }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    /* ---------- Divider ---------- */
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            hr {{ border-color: #E5E1FF; }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    /* ---------- Log box ---------- */
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            .stCode, pre {{
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        background: #0F0E1A !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    color: #A5B4FC !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                border-radius: 10px !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            font-family: 'JetBrains Mono', monospace !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        font-size: 0.78rem !important;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                }}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        </style>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                """,
-                    unsafe_allow_html=True,
-        )
-
-
-# ── Sentiment badge ─────────────────────────────────────────────────────────────
 def sentiment_badge(sentiment):
-        styles = {
-                    "positive": {
-                                    "bg": "linear-gradient(135deg, #D1FAE5, #A7F3D0)",
-                                    "color": "#065F46",
-                                    "icon": "▲",
-                                    "label": "POSITIVE",
-                    },
-                    "negative": {
-                                    "bg": "linear-gradient(135deg, #FEE2E2, #FECACA)",
-                                    "color": "#991B1B",
-                                    "icon": "▼",
-                                    "label": "NEGATIVE",
-                    },
-                    "neutral": {
-                                    "bg": "linear-gradient(135deg, #FEF3C7, #FDE68A)",
-                                    "color": "#92400E",
-                                    "icon": "●",
-                                    "label": "NEUTRAL",
-                    },
-        }
-        s = styles.get(sentiment, {
-            "bg": "#F3F4F6", "color": "#374151", "icon": "?", "label": sentiment.upper()
-        })
-        return (
-            f'<div style="background:{s["bg"]};color:{s["color"]};'
-            f'padding:18px 28px;border-radius:14px;font-size:1.9rem;font-weight:800;'
-            f'display:inline-flex;align-items:center;gap:10px;'
-            f'box-shadow:0 2px 12px rgba(0,0,0,0.08);margin-bottom:10px;">'
-            f'<span style="font-size:1.4rem">{s["icon"]}</span>{s["label"]}</div>'
-        )
+    colours = {
+        'positive': ('#d4edda', '#155724', 'POSITIVE'),
+        'negative': ('#f8d7da', '#721c24', 'NEGATIVE'),
+        'neutral':  ('#fff3cd', '#856404', 'NEUTRAL'),
+    }
+    bg, fg, label = colours.get(sentiment, ('#e2e3e5', '#383d41', sentiment.upper()))
+    return (
+        f'<div style="background:{bg};color:{fg};padding:16px 24px;'
+        f'border-radius:10px;font-size:2rem;font-weight:700;'
+        f'display:inline-block;margin-bottom:8px">{label}</div>'
+    )
 
 
-# ── Confidence gauge ────────────────────────────────────────────────────────────
-def confidence_gauge(confidence: float) -> go.Figure:
-        pct = round(confidence * 100)
-        color = (
-            BRAND["positive"] if pct >= 70
-            else BRAND["neutral"] if pct >= 40
-            else BRAND["negative"]
-        )
-        fig = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=pct,
-            number={"suffix": "%", "font": {"size": 28, "color": BRAND["text_dark"], "family": "Inter"}},
-            gauge={
-                "axis": {"range": [0, 100], "tickfont": {"size": 11, "color": BRAND["text_muted"]}},
-                "bar": {"color": color, "thickness": 0.28},
-                "bgcolor": "#F5F3FF",
-                "borderwidth": 0,
-                "steps": [
-                    {"range": [0, 40],  "color": "#FEE2E2"},
-                    {"range": [40, 70], "color": "#FEF3C7"},
-                    {"range": [70, 100],"color": "#D1FAE5"},
-                ],
-            },
-            domain={"x": [0, 1], "y": [0, 1]},
-        ))
-        fig.update_layout(
-            height=180,
-            margin=dict(l=20, r=20, t=20, b=20),
-            paper_bgcolor="rgba(0,0,0,0)",
-            font={"family": "Inter"},
-        )
-        return fig
-
-
-# ── Sentiment donut ─────────────────────────────────────────────────────────────
-def sentiment_donut(pos: int, neu: int, neg: int) -> go.Figure:
-        fig = go.Figure(go.Pie(
-                    labels=["Positive", "Neutral", "Negative"],
-                    values=[pos, neu, neg],
-                    hole=0.6,
-                    marker_colors=[BRAND["positive"], BRAND["neutral"], BRAND["negative"]],
-                    textinfo="percent",
-                    textfont={"size": 13, "family": "Inter"},
-                    hovertemplate="%{label}: %{value} posts<extra></extra>",
-        ))
-        fig.update_layout(
-            showlegend=True,
-            legend=dict(orientation="h", y=-0.12, font={"size": 12, "family": "Inter"}),
-            margin=dict(l=10, r=10, t=10, b=30),
-            height=260,
-            paper_bgcolor="rgba(0,0,0,0)",
-            font={"family": "Inter"},
-        )
-        return fig
-
-
-# ── Platform bar chart ──────────────────────────────────────────────────────────
-def platform_bar(platform_counts: dict) -> go.Figure:
-        if not platform_counts:
-                return None
-        platforms = list(platform_counts.keys())
-        counts    = list(platform_counts.values())
-        colors    = [BRAND["primary"]] * len(platforms)
-        fig = go.Figure(go.Bar(
-                    x=platforms,
-                    y=counts,
-                    marker=dict(
-                            color=colors,
-                            opacity=0.85,
-                            line=dict(width=0),
-                    ),
-                    text=counts,
-                    textposition="outside",
-                    textfont={"family": "Inter", "size": 12},
-                    hovertemplate="%{x}: %{y} posts<extra></extra>",
-        ))
-        fig.update_layout(
-                xaxis=dict(title="", tickfont={"family": "Inter", "size": 12}),
-                yaxis=dict(title="Posts", tickfont={"family": "Inter", "size": 12}, gridcolor="#E5E1FF"),
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=20, r=20, t=10, b=20),
-                height=260,
-                font={"family": "Inter"},
-                bargap=0.35,
-        )
-        return fig
-
-
-# ── Live log helper ─────────────────────────────────────────────────────────────
 def _ui_log_factory(log_lines, log_box):
-        def _ui_log(line):
-                log_lines.append(line)
-                log_box.code('\n'.join(log_lines[-200:]), language='text')
-        return _ui_log
+    def _ui_log(line):
+        log_lines.append(line)
+        log_box.code('\n'.join(log_lines[-200:]), language='text')
+    return _ui_log
 
 
-# ── Results renderer ────────────────────────────────────────────────────────────
-def render_results(brand_name: str, results: dict):
-        if results.get("error"):
-                    st.error(results["error"])
-                    return
+def render_results(brand_name, results):
+    # --- error guard ---
+    if results.get('error'):
+        st.error(results['error'])
+        return
 
-        overall    = results.get("dominant", "neutral")
-        confidence = results.get("confidence", 0.0)
-        total      = results.get("total", 0)
-        counts     = results.get("counts", {})
-        pos        = counts.get("positive", 0)
-        neu        = counts.get("neutral",  0)
-        neg        = counts.get("negative", 0)
-        warnings   = results.get("warnings", [])
-        platform_counts = results.get("platform_counts", {})
-        posts      = results.get("posts", [])
+    # --- pull keys using the names main.py actually returns ---
+    overall     = results.get('dominant', 'neutral')
+    confidence  = results.get('confidence', 0.0)
+    total       = results.get('total', 0)
+    counts      = results.get('counts', {})
+    pos         = counts.get('positive', 0)
+    neu         = counts.get('neutral',  0)
+    neg         = counts.get('negative', 0)
+    warnings    = results.get('warnings', [])
 
-        # ── Low-volume warning ─────────────────────────────────────────────────────
-        if total < 15:
-                st.warning(
-                                f"⚠️ Only **{total} posts** found for this brand. "
-                                "Results may not be representative — interpret with caution.",
+    # --- post volume warning ---
+    if total < 15:
+        st.warning(
+            f'⚠️ Only **{total} posts** were found for this brand. '
+            'Results may not be representative — treat them with caution.',
+        )
+
+    # --- header ---
+    st.markdown('### Overall Sentiment for **' + brand_name + '**')
+
+    col_v, col_c, col_t = st.columns([2, 1, 1])
+    col_v.markdown(sentiment_badge(overall), unsafe_allow_html=True)
+    col_c.metric(
+        'Confidence',
+        f'{confidence:.0%}',
+        help=(
+            'The percentage of posts that matched the dominant sentiment. '
+            'e.g. 72% means 72 out of 100 posts were classified as the dominant sentiment. '
+            'A higher score = stronger, more consistent signal.'
+        ),
+    )
+    if confidence >= 0.65:
+        _sig_bg, _sig_fg, _sig_label = '#d4edda', '#155724', 'Strong signal'
+    elif confidence >= 0.50:
+        _sig_bg, _sig_fg, _sig_label = '#fff3cd', '#856404', 'Moderate signal'
+    else:
+        _sig_bg, _sig_fg, _sig_label = '#f8d7da', '#721c24', 'Weak signal'
+    col_c.markdown(
+        f'<div style="background:{_sig_bg};color:{_sig_fg};padding:4px 8px;'
+        f'border-radius:6px;font-size:0.78rem;font-weight:600;text-align:center;margin-top:4px">'
+        f'{_sig_label}</div>',
+        unsafe_allow_html=True,
+    )
+    col_t.metric('Posts Analyzed', total)
+
+    if warnings:
+        with st.expander('Source warnings'):
+            for w in warnings:
+                st.warning(w)
+
+    st.divider()
+
+    # --- sentiment breakdown + bar chart ---
+    st.markdown('### Sentiment Breakdown')
+    c1, c2, c3 = st.columns(3)
+    c1.metric('Positive', pos)
+    c2.metric('Neutral',  neu)
+    c3.metric('Negative', neg)
+    fig = go.Figure(go.Bar(
+        x=['Positive', 'Neutral', 'Negative'],
+        y=[pos, neu, neg],
+        marker_color=['#2ecc71', '#f0ad4e', '#e74c3c'],
+        text=[pos, neu, neg],
+        textposition='outside',
+    ))
+    fig.update_layout(
+        yaxis_title='Posts',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(t=20, b=20),
+        yaxis=dict(gridcolor='rgba(128,128,128,0.2)'),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    st.divider()
+
+    # --- top terms ---
+    # main.py returns plain word lists e.g. ['great', 'fast', 'quality']
+    st.markdown('### Top Mentioned Terms')
+    t_pos_col, t_neg_col = st.columns(2)
+    pos_terms = results.get('top_positive_terms', [])
+    neg_terms = results.get('top_negative_terms', [])
+
+    with t_pos_col:
+        st.markdown('**In Positive Posts**')
+        if pos_terms:
+            for rank, word in enumerate(pos_terms, 1):
+                st.markdown(f'{rank}. **{word}**')
+        else:
+            st.caption('Not enough positive posts.')
+
+    with t_neg_col:
+        st.markdown('**In Negative Posts**')
+        if neg_terms:
+            for rank, word in enumerate(neg_terms, 1):
+                st.markdown(f'{rank}. **{word}**')
+        else:
+            st.caption('Not enough negative posts.')
+
+    st.divider()
+
+    # --- platform breakdown table ---
+    st.markdown('### By Platform')
+    platform_breakdown = results.get('platform_breakdown', {})
+    if platform_breakdown:
+        rows = []
+        for platform, pdata in platform_breakdown.items():
+            rows.append({
+                'Platform': platform,
+                'Total':    pdata.get('total', 0),
+                'Positive': pdata.get('positive', 0),
+                'Neutral':  pdata.get('neutral', 0),
+                'Negative': pdata.get('negative', 0),
+            })
+        plat_df = pd.DataFrame(rows).set_index('Platform')
+        st.dataframe(plat_df, use_container_width=True)
+        # grouped bar chart
+        _platforms = [r['Platform'] for r in rows]
+        _fig_plat = go.Figure(data=[
+            go.Bar(name='Positive', x=_platforms, y=[r['Positive'] for r in rows], marker_color='#2ecc71'),
+            go.Bar(name='Neutral',  x=_platforms, y=[r['Neutral']  for r in rows], marker_color='#f0ad4e'),
+            go.Bar(name='Negative', x=_platforms, y=[r['Negative'] for r in rows], marker_color='#e74c3c'),
+        ])
+        _fig_plat.update_layout(
+            barmode='group',
+            yaxis_title='Posts',
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(t=20, b=20),
+            yaxis=dict(gridcolor='rgba(128,128,128,0.2)'),
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+        )
+        st.plotly_chart(_fig_plat, use_container_width=True)
+    else:
+        st.caption('No platform data available.')
+    st.divider()
+
+    # --- source coverage strip ---
+    st.markdown('### Source Coverage')
+    sources = ['TikTok', 'LinkedIn', 'Twitter/X', 'Reddit']
+    cov_cols = st.columns(len(sources))
+    for i, src in enumerate(sources):
+        found = platform_breakdown.get(src, {}).get('total', 0)
+        cov_cols[i].metric(src, found if found else '0')
+    st.divider()
+
+    # --- export ---------------------------------------------------------------
+    st.markdown('### Export Results')
+    _export_posts = results.get('posts', [])
+    if _export_posts:
+        import json as _json
+        _exp_col1, _exp_col2 = st.columns(2)
+        _csv_df = pd.DataFrame(_export_posts)[['platform', 'author', 'sentiment', 'content', 'url']]
+        _exp_col1.download_button(
+            label='⬇️ Download posts as CSV',
+            data=_csv_df.to_csv(index=False).encode('utf-8'),
+            file_name=f'{brand_name.replace(" ", "_")}_sentiment_posts.csv',
+            mime='text/csv',
+            use_container_width=True,
+        )
+        _summary = {
+            'brand':      brand_name,
+            'total':      results.get('total', 0),
+            'dominant':   results.get('dominant', ''),
+            'confidence': results.get('confidence', 0.0),
+            'counts':     results.get('counts', {}),
+            'platform_breakdown': results.get('platform_breakdown', {}),
+            'top_positive_terms': results.get('top_positive_terms', []),
+            'top_negative_terms': results.get('top_negative_terms', []),
+        }
+        _exp_col2.download_button(
+            label='⬇️ Download summary as JSON',
+            data=_json.dumps(_summary, indent=2).encode('utf-8'),
+            file_name=f'{brand_name.replace(" ", "_")}_sentiment_summary.json',
+            mime='application/json',
+            use_container_width=True,
+        )
+    st.divider()
+
+    # --- individual posts (platform tabs) ---
+    st.markdown('### Individual Post Breakdown')
+
+    all_posts = list(results.get('posts', []))
+
+    # Sentinel filter: drop posts missing both content and url (malformed entries)
+    all_posts = [p for p in all_posts if isinstance(p, dict)]
+
+    # Build platform groups
+    platform_names = ['TikTok', 'LinkedIn', 'Twitter/X', 'Reddit']
+    platform_posts = {pl: [p for p in all_posts if (p.get('platform') or '') == pl]
+                      for pl in platform_names}
+
+    # Sentiment filter (applies within the selected platform tab)
+    sentiment_filter = st.selectbox(
+        'Filter by sentiment',
+        ['All', 'Positive', 'Neutral', 'Negative'],
+        key='filter_sentiment',
+    )
+
+    tab_labels = [f"{pl} ({len(platform_posts[pl])})" for pl in platform_names]
+    tabs = st.tabs(tab_labels)
+
+    for tab, pl in zip(tabs, platform_names):
+        with tab:
+            posts = platform_posts[pl]
+            if sentiment_filter != 'All':
+                posts = [p for p in posts if (p.get('sentiment') or '').lower() == sentiment_filter.lower()]
+            if not posts:
+                st.info(f'No {sentiment_filter.lower() if sentiment_filter != "All" else ""} posts found for {pl}.')
+            else:
+                st.caption(f'Showing {len(posts)} post(s)')
+                for post in posts:
+                    try:
+                        senti  = str(post.get('sentiment') or 'neutral')
+                        author = str(post.get('author')    or 'Unknown')
+                        plat   = str(post.get('platform')  or pl)
+                        content = str(post.get('content')  or '')
+                        url    = str(post.get('url')        or '')
+                        label  = f'[{plat}] {author}'
+                        with st.expander(label):
+                            st.write(content)
+                            st.caption('Sentiment: ' + senti.upper())
+                            if url:
+                                st.markdown(f'[View post]({url})')
+                    except Exception as e:
+                        st.warning(f'Could not render a post: {e}')
+
+# ── Session state ────────────────────────────────────────────────────────
+if 'results' not in st.session_state:
+    st.session_state['results'] = None
+if 'result_brand' not in st.session_state:
+    st.session_state['result_brand'] = ''
+
+# ── Header ────────────────────────────────────────────────────────────────
+st.title('Brand Sentiment Analyzer')
+st.markdown(
+    'Enter a brand name to scrape TikTok, LinkedIn, Twitter/X, and Reddit '
+    'for recent 2026 mentions and determine overall sentiment.'
+)
+st.divider()
+
+# ── Input form ────────────────────────────────────────────────────────────
+with st.form('brand_form'):
+    brand_name = st.text_input(
+        label='Brand Name',
+        placeholder='e.g. Nike, Airbnb, OpenAI...',
+        help='Enter the brand or company name you want to analyze.',
+    )
+    submitted = st.form_submit_button('Analyze Sentiment', use_container_width=True)
+
+# ── Run analysis ──────────────────────────────────────────────────────────
+if submitted:
+    brand_name    = brand_name.strip()
+    if not brand_name:
+        st.warning('Please enter a brand name before clicking Analyze.')
+    else:
+        query_display = brand_name
+        log_lines = []
+        progress_bar = st.progress(0)
+        with st.status(f'Analyzing \'{query_display}\'...', expanded=True) as status:
+            log_box      = st.empty()
+            _ui_log      = _ui_log_factory(log_lines, log_box)
+
+            def progress_aware_log(line):
+                _ui_log(line)
+                if 'Step 1/5' in line:
+                    progress_bar.progress(10)
+                elif 'Step 2/5' in line:
+                    progress_bar.progress(25)
+                elif 'Step 3/5' in line:
+                    progress_bar.progress(45)
+                elif 'Step 4/5' in line:
+                    progress_bar.progress(60)
+                elif 'Step 5/5' in line:
+                    progress_bar.progress(78)
+
+            analyzer.set_log_callback(progress_aware_log)
+            try:
+                results = analyzer.run_analysis(brand_name)
+                progress_bar.progress(100)
+                status.update(
+                    label=f'Done analyzing \'{query_display}\'',
+                    state='complete',
+                    expanded=False,
                 )
+                st.session_state['results'] = results
+                st.session_state['result_brand'] = brand_name
+            except Exception as exc:
+                status.update(label='Analysis failed', state='error', expanded=True)
+                st.error(f'Unexpected error: {exc}')
 
-        # ── Section heading ────────────────────────────────────────────────────────
-        st.markdown(
-                f'<h2 style="margin-bottom:4px;">Sentiment Report</h2>'
-                f'<p style="color:#6B7280;margin-top:0;font-size:1rem;">Brand: '
-                f'<strong style="color:#6C63FF">{brand_name}</strong></p>',
-                unsafe_allow_html=True,
-        )
-        st.divider()
-
-        # ── Top KPI row ────────────────────────────────────────────────────────────
-        col_badge, col_conf, col_total, col_pos, col_neg = st.columns([2.5, 2, 1.5, 1.5, 1.5])
-        with col_badge:
-                st.markdown(sentiment_badge(overall), unsafe_allow_html=True)
-        with col_conf:
-                st.plotly_chart(confidence_gauge(confidence), use_container_width=True, config={"displayModeBar": False})
-        with col_total:
-                st.metric("Posts Analysed", total)
-        with col_pos:
-                pct_pos = round(pos / total * 100) if total else 0
-                st.metric("Positive", f"{pct_pos}%", delta=f"{pos} posts", delta_color="normal")
-        with col_neg:
-                pct_neg = round(neg / total * 100) if total else 0
-                st.metric("Negative", f"{pct_neg}%", delta=f"{neg} posts", delta_color="inverse")
-
-        # ── Charts row ─────────────────────────────────────────────────────────────
-        col_donut, col_bar = st.columns(2)
-        with col_donut:
-                st.markdown("##### Sentiment Breakdown")
-                st.plotly_chart(sentiment_donut(pos, neu, neg), use_container_width=True, config={"displayModeBar": False})
-        with col_bar:
-                fig_bar = platform_bar(platform_counts)
-                if fig_bar:
-                        st.markdown("##### Posts by Platform")
-                        st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
-
-        # ── Topic chips ────────────────────────────────────────────────────────────
-        key_topics = results.get("key_topics", [])
-        if key_topics:
-                st.markdown("##### Top Topics")
-                chip_html = " ".join(
-                    f'<span style="background:#EEF2FF;color:#4338CA;'
-                    f'border-radius:999px;padding:4px 14px;font-size:0.82rem;'
-                    f'font-weight:600;margin:3px;display:inline-block;">{t}</span>'
-                    for t in key_topics
-                )
-                st.markdown(chip_html, unsafe_allow_html=True)
-
-        # ── Other warnings ─────────────────────────────────────────────────────────
-        for w in warnings:
-                st.info(w)
-
-        # ── Posts table ────────────────────────────────────────────────────────────
-        if posts:
-                st.markdown("---")
-                st.markdown("##### Individual Posts")
-                df = pd.DataFrame(posts)
-                display_cols = [c for c in ["timestamp","platform","author","sentiment","confidence","key_topics","content","url"]
-                                if c in df.columns]
-                styled = df[display_cols].rename(columns={c: c.replace("_", " ").title() for c in display_cols})
-
-                def _colour_row(row):
-                        s = row.get("Sentiment", "").lower() if isinstance(row, dict) else ""
-                        bg = {"positive": "#F0FDF4", "negative": "#FFF1F2", "neutral": "#FFFBEB"}.get(s, "")
-                        return [f"background-color: {bg}" if bg else "" for _ in row]
-
-                st.dataframe(styled, use_container_width=True, hide_index=True)
-
-                # ── Downloads ──────────────────────────────────────────────────────────
-                dl_col1, dl_col2 = st.columns(2)
-                with dl_col1:
-                        csv_bytes = df.to_csv(index=False).encode()
-                        st.download_button(
-                            "⬇ Download CSV",
-                            data=csv_bytes,
-                            file_name=f"{brand_name}_sentiment.csv",
-                            mime="text/csv",
-                            use_container_width=True,
-                        )
-                with dl_col2:
-                        import json
-                        json_bytes = json.dumps(posts, indent=2, default=str).encode()
-                        st.download_button(
-                            "⬇ Download JSON",
-                            data=json_bytes,
-                            file_name=f"{brand_name}_sentiment.json",
-                            mime="application/json",
-                            use_container_width=True,
-                        )
-
-
-# ── Main app ────────────────────────────────────────────────────────────────────
-def main():
-        st.set_page_config(
-                    page_title="PulseCheck — Brand Sentiment",
-                    page_icon="📡",
-                    layout="wide",
-                    initial_sidebar_state="expanded",
-        )
-        inject_global_css()
-
-        # ── Sidebar ───────────────────────────────────────────────────────────────
-        with st.sidebar:
-                    st.markdown(
-                                    '<h1 style="color:#A5B4FC;font-size:1.6rem;font-weight:800;'
-                                    'letter-spacing:-0.02em;margin-bottom:2px;">📡 PulseCheck</h1>'
-                                    '<p style="color:#7C6FCD;font-size:0.82rem;margin-top:0;">AI-Powered Brand Listening</p>',
-                                    unsafe_allow_html=True,
-                    )
-                    st.markdown("---")
-
-        brand_input = st.text_input(
-                        "Brand / Keyword",
-                        placeholder="e.g. Nike, Tesla, OpenAI",
-                        help="Enter the brand name or keyword you want to analyse.",
-        )
-
-        st.markdown("##### 🔌 Data Sources")
-        use_tiktok   = st.checkbox("TikTok",   value=True)
-        use_linkedin = st.checkbox("LinkedIn",  value=True)
-        use_twitter  = st.checkbox("Twitter/X", value=True)
-            use_reddit   = st.checkbox("Reddit",    value=True)
-        use_web      = st.checkbox("Web / News",value=True)
-
-        st.markdown("---")
-        run_btn = st.button("🔍 Run Analysis", use_container_width=True)
-
-        st.markdown(
-                        '<p style="color:#6B5EAD;font-size:0.72rem;margin-top:auto;padding-top:2rem;">'
-                        'Powered by Claude AI · Apify · Firecrawl</p>',
-                        unsafe_allow_html=True,
-        )
-
-        # ── Hero / empty state ────────────────────────────────────────────────────
-        if not run_btn or not brand_input.strip():
-                st.markdown(
-                                '<div style="text-align:center;padding:5rem 2rem;">'
-                                '<p style="font-size:4rem;margin-bottom:0;">📡</p>'
-                                '<h1 style="font-size:2.8rem;font-weight:800;color:#1F1B4E;margin:0.3rem 0;">PulseCheck</h1>'
-                                '<p style="font-size:1.15rem;color:#6B7280;max-width:520px;margin:0.5rem auto 2rem;">'
-                                'Enter a brand name in the sidebar and click <strong>Run Analysis</strong> '
-                                'to get real-time sentiment intelligence from social media &amp; the web.</p>'
-                                '<div style="display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center;">'
-                                + "".join(
-                                                    f'<span style="background:#EEF2FF;color:#4338CA;border-radius:999px;'
-                                                    f'padding:6px 16px;font-size:0.85rem;font-weight:600;">{tag}</span>'
-                                                    for tag in ["TikTok", "LinkedIn", "Twitter / X", "Reddit", "Web & News", "AI Summaries"]
-                                )
-                                + "</div></div>",
-                                unsafe_allow_html=True,
-                )
-                return
-
-        # ── Run analysis ─────────────────────────────────────────────────────────
-        brand_name = brand_input.strip()
-        st.markdown(f"### Analysing **{brand_name}**…")
-
-        log_lines: list[str] = []
-        log_expander = st.expander("📋 Live progress log", expanded=False)
-        log_box = log_expander.empty()
-        ui_log  = _ui_log_factory(log_lines, log_box)
-
-        source_flags = dict(
-                tiktok=use_tiktok,
-                linkedin=use_linkedin,
-                twitter=use_twitter,
-                reddit=use_reddit,
-                firecrawl=use_web,
-        )
-
-        with st.spinner("Scraping and analysing — this may take a minute…"):
-                results = analyzer.run(brand_name, log_fn=ui_log, source_flags=source_flags)
-
-        render_results(brand_name, results)
-
-
-if __name__ == "__main__":
-        main()
+# ── Render results (persists across reruns e.g. when filters change) ───────
+if st.session_state.get('results') is not None:
+    render_results(st.session_state['result_brand'], st.session_state['results'])
