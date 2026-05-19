@@ -305,7 +305,7 @@ def fetch_linkedin(brand, context=''):
                 continue
             results.append({
                 'platform': 'LinkedIn',
-                'author': item.get('author') or item.get('name') or 'unknown',
+                'author': ((item.get('author') or {}).get('name') or (item.get('author') or {}).get('universalName') or item.get('name') or 'unknown') if isinstance(item.get('author'), dict) else (item.get('author') or item.get('name') or 'unknown'),
                 'content': text[:500],
                 'url': (
                     item.get('postUrl')
@@ -441,7 +441,7 @@ def analyze_sentiment(posts):
     for chunk_idx, chunk_start in enumerate(range(0, len(posts), chunk_size)):
         chunk = posts[chunk_start:chunk_start + chunk_size]
         post_texts = '\n'.join(
-            f'{i + 1}. {post["content"][:300]}'
+            f'{i + 1}. {str(post.get("content") or "")[:300]}'
             for i, post in enumerate(chunk)
         )
         prompt = (
