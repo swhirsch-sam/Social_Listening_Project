@@ -331,7 +331,7 @@ def analyze_sentiment(posts):
             # Strip markdown fences if Claude wraps the array
             raw = _re.sub(r'```[a-z]*\n?', '', raw).strip()
             # Extract just the JSON array in case there is surrounding text
-            m = _re.search(r'\[.*?\]', raw, _re.DOTALL)
+            m = _re.search(r'\[.*\]', raw, _re.DOTALL)
             raw = m.group(0) if m else raw
             sentiments = json.loads(raw)
             if not isinstance(sentiments, list):
