@@ -218,24 +218,24 @@ def sentiment_donut(pos: int, neu: int, neg: int) -> go.Figure:
 # ── Platform bar chart ──────────────────────────────────────────────────────────
 def platform_bar(platform_counts: dict) -> go.Figure:
         if not platform_counts:
-                    return None
-                platforms = list(platform_counts.keys())
-    counts    = list(platform_counts.values())
-    colors    = [BRAND["primary"]] * len(platforms)
-    fig = go.Figure(go.Bar(
-                x=platforms,
-                y=counts,
-                marker=dict(
-                                color=colors,
-                                opacity=0.85,
-                                line=dict(width=0),
-                ),
-                text=counts,
-                textposition="outside",
-                textfont={"family": "Inter", "size": 12},
-                hovertemplate="%{x}: %{y} posts<extra></extra>",
-    ))
-    fig.update_layout(
+                return None
+        platforms = list(platform_counts.keys())
+        counts    = list(platform_counts.values())
+        colors    = [BRAND["primary"]] * len(platforms)
+        fig = go.Figure(go.Bar(
+                    x=platforms,
+                    y=counts,
+                    marker=dict(
+                            color=colors,
+                            opacity=0.85,
+                            line=dict(width=0),
+                    ),
+                    text=counts,
+                    textposition="outside",
+                    textfont={"family": "Inter", "size": 12},
+                    hovertemplate="%{x}: %{y} posts<extra></extra>",
+        ))
+        fig.update_layout(
                 xaxis=dict(title="", tickfont={"family": "Inter", "size": 12}),
                 yaxis=dict(title="Posts", tickfont={"family": "Inter", "size": 12}, gridcolor="#E5E1FF"),
                 plot_bgcolor="rgba(0,0,0,0)",
@@ -244,16 +244,16 @@ def platform_bar(platform_counts: dict) -> go.Figure:
                 height=260,
                 font={"family": "Inter"},
                 bargap=0.35,
-    )
-    return fig
+        )
+        return fig
 
 
 # ── Live log helper ─────────────────────────────────────────────────────────────
 def _ui_log_factory(log_lines, log_box):
         def _ui_log(line):
-                    log_lines.append(line)
-                    log_box.code('\n'.join(log_lines[-200:]), language='text')
-                return _ui_log
+                log_lines.append(line)
+                log_box.code('\n'.join(log_lines[-200:]), language='text')
+        return _ui_log
 
 
 # ── Results renderer ────────────────────────────────────────────────────────────
@@ -262,62 +262,62 @@ def render_results(brand_name: str, results: dict):
                     st.error(results["error"])
                     return
 
-    overall    = results.get("dominant", "neutral")
-    confidence = results.get("confidence", 0.0)
-    total      = results.get("total", 0)
-    counts     = results.get("counts", {})
-    pos        = counts.get("positive", 0)
-    neu        = counts.get("neutral",  0)
-    neg        = counts.get("negative", 0)
-    warnings   = results.get("warnings", [])
-    platform_counts = results.get("platform_counts", {})
-    posts      = results.get("posts", [])
+        overall    = results.get("dominant", "neutral")
+        confidence = results.get("confidence", 0.0)
+        total      = results.get("total", 0)
+        counts     = results.get("counts", {})
+        pos        = counts.get("positive", 0)
+        neu        = counts.get("neutral",  0)
+        neg        = counts.get("negative", 0)
+        warnings   = results.get("warnings", [])
+        platform_counts = results.get("platform_counts", {})
+        posts      = results.get("posts", [])
 
-    # ── Low-volume warning ─────────────────────────────────────────────────────
-    if total < 15:
+        # ── Low-volume warning ─────────────────────────────────────────────────────
+        if total < 15:
                 st.warning(
                                 f"⚠️ Only **{total} posts** found for this brand. "
                                 "Results may not be representative — interpret with caution.",
                 )
 
-    # ── Section heading ────────────────────────────────────────────────────────
-    st.markdown(
+        # ── Section heading ────────────────────────────────────────────────────────
+        st.markdown(
                 f'<h2 style="margin-bottom:4px;">Sentiment Report</h2>'
                 f'<p style="color:#6B7280;margin-top:0;font-size:1rem;">Brand: '
                 f'<strong style="color:#6C63FF">{brand_name}</strong></p>',
                 unsafe_allow_html=True,
-    )
-    st.divider()
+        )
+        st.divider()
 
-    # ── Top KPI row ────────────────────────────────────────────────────────────
-    col_badge, col_conf, col_total, col_pos, col_neg = st.columns([2.5, 2, 1.5, 1.5, 1.5])
-    with col_badge:
+        # ── Top KPI row ────────────────────────────────────────────────────────────
+        col_badge, col_conf, col_total, col_pos, col_neg = st.columns([2.5, 2, 1.5, 1.5, 1.5])
+        with col_badge:
                 st.markdown(sentiment_badge(overall), unsafe_allow_html=True)
-            with col_conf:
-                        st.plotly_chart(confidence_gauge(confidence), use_container_width=True, config={"displayModeBar": False})
-                    with col_total:
-                                st.metric("Posts Analysed", total)
-                            with col_pos:
-                                        pct_pos = round(pos / total * 100) if total else 0
-                                        st.metric("Positive", f"{pct_pos}%", delta=f"{pos} posts", delta_color="normal")
-                                    with col_neg:
-                                                pct_neg = round(neg / total * 100) if total else 0
-                                                st.metric("Negative", f"{pct_neg}%", delta=f"{neg} posts", delta_color="inverse")
+        with col_conf:
+                st.plotly_chart(confidence_gauge(confidence), use_container_width=True, config={"displayModeBar": False})
+        with col_total:
+                st.metric("Posts Analysed", total)
+        with col_pos:
+                pct_pos = round(pos / total * 100) if total else 0
+                st.metric("Positive", f"{pct_pos}%", delta=f"{pos} posts", delta_color="normal")
+        with col_neg:
+                pct_neg = round(neg / total * 100) if total else 0
+                st.metric("Negative", f"{pct_neg}%", delta=f"{neg} posts", delta_color="inverse")
 
-    # ── Charts row ─────────────────────────────────────────────────────────────
-    col_donut, col_bar = st.columns(2)
-    with col_donut:
+        # ── Charts row ─────────────────────────────────────────────────────────────
+        col_donut, col_bar = st.columns(2)
+        with col_donut:
                 st.markdown("##### Sentiment Breakdown")
                 st.plotly_chart(sentiment_donut(pos, neu, neg), use_container_width=True, config={"displayModeBar": False})
-            with col_bar:
-                        fig_bar = platform_bar(platform_counts)
-                        if fig_bar:
-                                        st.markdown("##### Posts by Platform")
-                                        st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
+        with col_bar:
+                fig_bar = platform_bar(platform_counts)
+                if fig_bar:
+                        st.markdown("##### Posts by Platform")
+                        st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
 
                     # ── Topic chips ────────────────────────────────────────────────────────────
                     key_topics = results.get("key_topics", [])
-    if key_topics:
+        if key_topics:
                 st.markdown("##### Top Topics")
                 chip_html = " ".join(
                     f'<span style="background:#EEF2FF;color:#4338CA;'
@@ -327,12 +327,12 @@ def render_results(brand_name: str, results: dict):
                 )
                 st.markdown(chip_html, unsafe_allow_html=True)
 
-    # ── Other warnings ─────────────────────────────────────────────────────────
-    for w in warnings:
+        # ── Other warnings ─────────────────────────────────────────────────────────
+        for w in warnings:
                 st.info(w)
 
-    # ── Posts table ────────────────────────────────────────────────────────────
-    if posts:
+        # ── Posts table ────────────────────────────────────────────────────────────
+        if posts:
                 st.markdown("---")
                 st.markdown("##### Individual Posts")
                 df = pd.DataFrame(posts)
@@ -380,7 +380,7 @@ def main():
         )
         inject_global_css()
 
-    # ── Sidebar ───────────────────────────────────────────────────────────────
+        # ── Sidebar ───────────────────────────────────────────────────────────────
         with st.sidebar:
                     st.markdown(
                                     '<h1 style="color:#A5B4FC;font-size:1.6rem;font-weight:800;'
@@ -412,8 +412,8 @@ def main():
                         unsafe_allow_html=True,
         )
 
-    # ── Hero / empty state ────────────────────────────────────────────────────
-    if not run_btn or not brand_input.strip():
+        # ── Hero / empty state ────────────────────────────────────────────────────
+        if not run_btn or not brand_input.strip():
                 st.markdown(
                                 '<div style="text-align:center;padding:5rem 2rem;">'
                                 '<p style="font-size:4rem;margin-bottom:0;">📡</p>'
@@ -432,27 +432,27 @@ def main():
                 )
                 return
 
-    # ── Run analysis ─────────────────────────────────────────────────────────
-    brand_name = brand_input.strip()
-    st.markdown(f"### Analysing **{brand_name}**…")
+        # ── Run analysis ─────────────────────────────────────────────────────────
+        brand_name = brand_input.strip()
+        st.markdown(f"### Analysing **{brand_name}**…")
 
-    log_lines: list[str] = []
-    log_expander = st.expander("📋 Live progress log", expanded=False)
-    log_box = log_expander.empty()
-    ui_log  = _ui_log_factory(log_lines, log_box)
+        log_lines: list[str] = []
+        log_expander = st.expander("📋 Live progress log", expanded=False)
+        log_box = log_expander.empty()
+        ui_log  = _ui_log_factory(log_lines, log_box)
 
-    source_flags = dict(
+        source_flags = dict(
                 tiktok=use_tiktok,
                 linkedin=use_linkedin,
                 twitter=use_twitter,
                 reddit=use_reddit,
                 firecrawl=use_web,
-    )
+        )
 
-    with st.spinner("Scraping and analysing — this may take a minute…"):
+        with st.spinner("Scraping and analysing — this may take a minute…"):
                 results = analyzer.run(brand_name, log_fn=ui_log, source_flags=source_flags)
 
-    render_results(brand_name, results)
+        render_results(brand_name, results)
 
 
 if __name__ == "__main__":
