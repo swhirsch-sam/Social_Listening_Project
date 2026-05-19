@@ -45,6 +45,13 @@ def render_results(brand_name, results):
     neg         = counts.get('negative', 0)
     warnings    = results.get('warnings', [])
 
+    # --- post volume warning ---
+    if total < 15:
+        st.warning(
+            f'⚠️ Only **{total} posts** were found for this brand. '
+            'Results may not be representative — treat them with caution.',
+        )
+
     # --- header ---
     st.markdown('### Overall Sentiment for **' + brand_name + '**')
 
@@ -58,6 +65,18 @@ def render_results(brand_name, results):
             'e.g. 72% means 72 out of 100 posts were classified as the dominant sentiment. '
             'A higher score = stronger, more consistent signal.'
         ),
+    )
+    if confidence >= 0.65:
+        _sig_bg, _sig_fg, _sig_label = '#d4edda', '#155724', 'Strong signal'
+    elif confidence >= 0.50:
+        _sig_bg, _sig_fg, _sig_label = '#fff3cd', '#856404', 'Moderate signal'
+    else:
+        _sig_bg, _sig_fg, _sig_label = '#f8d7da', '#721c24', 'Weak signal'
+    col_c.markdown(
+        f'<div style="background:{_sig_bg};color:{_sig_fg};padding:4px 8px;'
+        f'border-radius:6px;font-size:0.78rem;font-weight:600;text-align:center;margin-top:4px">'
+        f'{_sig_label}</div>',
+        unsafe_allow_html=True,
     )
     col_t.metric('Posts Analyzed', total)
 
@@ -131,6 +150,23 @@ def render_results(brand_name, results):
             })
         plat_df = pd.DataFrame(rows).set_index('Platform')
         st.dataframe(plat_df, use_container_width=True)
+        # grouped bar chart
+        _platforms = [r['Platform'] for r in rows]
+        _fig_plat = go.Figure(data=[
+            go.Bar(name='Positive', x=_platforms, y=[r['Positive'] for r in rows], marker_color='#2ecc71'),
+            go.Bar(name='Neutral',  x=_platforms, y=[r['Neutral']  for r in rows], marker_color='#f0ad4e'),
+            go.Bar(name='Negative', x=_platforms, y=[r['Negative'] for r in rows], marker_color='#e74c3c'),
+        ])
+        _fig_plat.update_layout(
+            barmode='group',
+            yaxis_title='Posts',
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(t=20, b=20),
+            yaxis=dict(gridcolor='rgba(128,128,128,0.2)'),
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+        )
+        st.plotly_chart(_fig_plat, use_container_width=True)
     else:
         st.caption('No platform data available.')
     st.divider()
@@ -142,6 +178,39 @@ def render_results(brand_name, results):
     for i, src in enumerate(sources):
         found = platform_breakdown.get(src, {}).get('total', 0)
         cov_cols[i].metric(src, found if found else '0')
+    st.divider()
+
+    # --- export ---------------------------------------------------------------
+    st.markdown('### Export Results')
+    _export_posts = results.get('posts', [])
+    if _export_posts:
+        import json as _json
+        _exp_col1, _exp_col2 = st.columns(2)
+        _csv_df = pd.DataFrame(_export_posts)[['platform', 'author', 'sentiment', 'content', 'url']]
+        _exp_col1.download_button(
+            label='⬇️ Download posts as CSV',
+            data=_csv_df.to_csv(index=False).encode('utf-8'),
+            file_name=f'{brand_name.replace(" ", "_")}_sentiment_posts.csv',
+            mime='text/csv',
+            use_container_width=True,
+        )
+        _summary = {
+            'brand':      brand_name,
+            'total':      results.get('total', 0),
+            'dominant':   results.get('dominant', ''),
+            'confidence': results.get('confidence', 0.0),
+            'counts':     results.get('counts', {}),
+            'platform_breakdown': results.get('platform_breakdown', {}),
+            'top_positive_terms': results.get('top_positive_terms', []),
+            'top_negative_terms': results.get('top_negative_terms', []),
+        }
+        _exp_col2.download_button(
+            label='⬇️ Download summary as JSON',
+            data=_json.dumps(_summary, indent=2).encode('utf-8'),
+            file_name=f'{brand_name.replace(" ", "_")}_sentiment_summary.json',
+            mime='application/json',
+            use_container_width=True,
+        )
     st.divider()
 
     # --- individual posts (platform tabs) ---
