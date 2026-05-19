@@ -340,16 +340,16 @@ def render_results(brand_name: str, results: dict):
                                 if c in df.columns]
                 styled = df[display_cols].rename(columns={c: c.replace("_", " ").title() for c in display_cols})
 
-        def _colour_row(row):
+                def _colour_row(row):
                         s = row.get("Sentiment", "").lower() if isinstance(row, dict) else ""
                         bg = {"positive": "#F0FDF4", "negative": "#FFF1F2", "neutral": "#FFFBEB"}.get(s, "")
                         return [f"background-color: {bg}" if bg else "" for _ in row]
 
-        st.dataframe(styled, use_container_width=True, hide_index=True)
+                st.dataframe(styled, use_container_width=True, hide_index=True)
 
-        # ── Downloads ──────────────────────────────────────────────────────────
-        dl_col1, dl_col2 = st.columns(2)
-        with dl_col1:
+                # ── Downloads ──────────────────────────────────────────────────────────
+                dl_col1, dl_col2 = st.columns(2)
+                with dl_col1:
                         csv_bytes = df.to_csv(index=False).encode()
                         st.download_button(
                             "⬇ Download CSV",
@@ -358,16 +358,16 @@ def render_results(brand_name: str, results: dict):
                             mime="text/csv",
                             use_container_width=True,
                         )
-                    with dl_col2:
-                                    import json
-                                    json_bytes = json.dumps(posts, indent=2, default=str).encode()
-                                    st.download_button(
-                                        "⬇ Download JSON",
-                                        data=json_bytes,
-                                        file_name=f"{brand_name}_sentiment.json",
-                                        mime="application/json",
-                                        use_container_width=True,
-                                    )
+                with dl_col2:
+                        import json
+                        json_bytes = json.dumps(posts, indent=2, default=str).encode()
+                        st.download_button(
+                            "⬇ Download JSON",
+                            data=json_bytes,
+                            file_name=f"{brand_name}_sentiment.json",
+                            mime="application/json",
+                            use_container_width=True,
+                        )
 
 
 # ── Main app ────────────────────────────────────────────────────────────────────
