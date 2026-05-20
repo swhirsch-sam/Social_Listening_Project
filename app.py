@@ -171,9 +171,9 @@ with st.sidebar:
 
 def sentiment_badge(sentiment):
     colours = {
-        'positive': ('#d4edda', '#155724', 'POSITIVE'),
-        'negative': ('#f8d7da', '#721c24', 'NEGATIVE'),
-        'neutral':  ('#fff3cd', '#856404', 'NEUTRAL'),
+                    'positive': ('#dbeafe', '#1e3a5f', 'POSITIVE'),
+                    'negative': ('#0a2540', '#ffffff', 'NEGATIVE'),
+                    'neutral':  ('#e8f0fe', '#1565c0', 'NEUTRAL'),
     }
     bg, fg, label = colours.get(sentiment, ('#e2e3e5', '#383d41', sentiment.upper()))
     return (
