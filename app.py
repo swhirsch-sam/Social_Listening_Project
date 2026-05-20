@@ -352,7 +352,7 @@ st.title('📡 PulseCheck')
 st.caption('Brand Sentiment Intelligence')
 st.markdown(
     'Enter a brand name to scrape TikTok, LinkedIn, Twitter/X, and Reddit '
-    'for recent 2026 mentions and determine overall sentiment.'
+            'for mentions from the past calendar year and determine overall sentiment.'
 )
 st.divider()
 
