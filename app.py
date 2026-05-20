@@ -14,6 +14,12 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+with st.sidebar:
+    st.markdown("## 📡 PulseCheck")
+    st.caption("Brand Sentiment Intelligence")
+    st.divider()
+
+
 
 def sentiment_badge(sentiment):
     colours = {
