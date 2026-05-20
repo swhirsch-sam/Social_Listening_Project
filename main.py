@@ -96,8 +96,8 @@ def fetch_tiktok(brand):
             "keywords": [query],
             "maxItems": config.APIFY_MAX_RESULTS,
             "sortType": "RELEVANCE",
-            "dateFrom": "2026-01-01",
-            "dateTo": "2026-12-31",
+                        "dateFrom": (datetime.date.today() - datetime.timedelta(days=365)).strftime("%Y-%m-%d"),
+                        "dateTo": datetime.date.today().strftime("%Y-%m-%d"),
         }
         _log(f"TikTok: starting run for '{query}'")
         run = client.actor(config.APIFY_TIKTOK_ACTOR).call(
@@ -151,8 +151,8 @@ def fetch_linkedin(brand):
         run_input = {
             "urls": [search_url],
             "count": config.APIFY_MAX_RESULTS,
-            "startDate": "2026-01-01",
-            "endDate": "2026-12-31",
+                        "startDate": (datetime.date.today() - datetime.timedelta(days=365)).strftime("%Y-%m-%d"),
+                        "endDate": datetime.date.today().strftime("%Y-%m-%d"),
         }
         _log(f"LinkedIn: starting run for '{query}'")
         run = client.actor(config.APIFY_LINKEDIN_ACTOR).call(
