@@ -14,6 +14,154 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+st.markdown("""
+<style>
+/* ── GLOBAL ─────────────────────────────────── */
+html, body, [class*="css"] {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+        color: #0d1117;
+        }
+
+        /* ── PAGE BACKGROUND ────────────────────────── */
+        .stApp {
+            background-color: #ffffff;
+            }
+
+            /* ── SIDEBAR ────────────────────────────────── */
+            [data-testid="stSidebar"] {
+                background-color: #0a2540;
+                }
+                [data-testid="stSidebar"] * {
+                    color: #ffffff !important;
+                    }
+                    [data-testid="stSidebar"] hr {
+                        border-color: #1e4a7a;
+                        }
+
+                        /* ── HEADINGS ───────────────────────────────── */
+                        h1, h2, h3, h4 {
+                            color: #0a2540;
+                            }
+
+                            /* ── TEXT INPUT BOX ─────────────────────────── */
+                            div[data-testid="stTextInput"] input {
+                                background-color: #f0f6ff;
+                                    color: #0d1117;
+                                        border: 2px solid #1565c0;
+                                            border-radius: 8px;
+                                                padding: 10px 14px;
+                                                    font-size: 1rem;
+                                                    }
+                                                    div[data-testid="stTextInput"] input::placeholder {
+                                                        color: #5a85b0;
+                                                        }
+                                                        div[data-testid="stTextInput"] input:focus {
+                                                            border-color: #1976d2;
+                                                                box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.2);
+                                                                    outline: none;
+                                                                        background-color: #ffffff;
+                                                                        }
+                                                                        div[data-testid="stTextInput"] label {
+                                                                            color: #0a2540 !important;
+                                                                                font-weight: 600;
+                                                                                    font-size: 0.95rem;
+                                                                                    }
+
+                                                                                    /* ── FORM / CARD CONTAINER ──────────────────── */
+                                                                                    [data-testid="stForm"] {
+                                                                                        background-color: #f0f6ff;
+                                                                                            border: 1px solid #90caf9;
+                                                                                                border-radius: 12px;
+                                                                                                    padding: 20px;
+                                                                                                    }
+                                                                                                    
+                                                                                                    /* ── BUTTON ─────────────────────────────────── */
+                                                                                                    div[data-testid="stFormSubmitButton"] button,
+                                                                                                    .stButton > button {
+                                                                                                        background-color: #1565c0;
+                                                                                                            color: #ffffff;
+                                                                                                                border: none;
+                                                                                                                    border-radius: 8px;
+                                                                                                                        font-weight: 600;
+                                                                                                                            font-size: 1rem;
+                                                                                                                                padding: 10px 24px;
+                                                                                                                                    transition: background-color 0.2s ease;
+                                                                                                                                    }
+                                                                                                                                    div[data-testid="stFormSubmitButton"] button:hover,
+                                                                                                                                    .stButton > button:hover {
+                                                                                                                                        background-color: #0d47a1;
+                                                                                                                                            color: #ffffff;
+                                                                                                                                            }
+                                                                                                                                            
+                                                                                                                                            /* ── METRIC CARDS ───────────────────────────── */
+                                                                                                                                            [data-testid="stMetric"] {
+                                                                                                                                                background-color: #e3f2fd;
+                                                                                                                                                    border: 1px solid #90caf9;
+                                                                                                                                                        border-radius: 10px;
+                                                                                                                                                            padding: 14px;
+                                                                                                                                                            }
+                                                                                                                                                            [data-testid="stMetricLabel"] {
+                                                                                                                                                                color: #1565c0 !important;
+                                                                                                                                                                    font-weight: 600;
+                                                                                                                                                                    }
+                                                                                                                                                                    [data-testid="stMetricValue"] {
+                                                                                                                                                                        color: #0a2540 !important;
+                                                                                                                                                                        }
+                                                                                                                                                                        
+                                                                                                                                                                        /* ── TABS ───────────────────────────────────── */
+                                                                                                                                                                        .stTabs [data-baseweb="tab-list"] {
+                                                                                                                                                                            border-bottom: 2px solid #1565c0;
+                                                                                                                                                                                gap: 4px;
+                                                                                                                                                                                }
+                                                                                                                                                                                .stTabs [data-baseweb="tab"] {
+                                                                                                                                                                                    color: #5a85b0;
+                                                                                                                                                                                        background-color: transparent;
+                                                                                                                                                                                            border-radius: 6px 6px 0 0;
+                                                                                                                                                                                                font-weight: 500;
+                                                                                                                                                                                                    padding: 8px 18px;
+                                                                                                                                                                                                    }
+                                                                                                                                                                                                    .stTabs [aria-selected="true"] {
+                                                                                                                                                                                                        color: #ffffff !important;
+                                                                                                                                                                                                            background-color: #1565c0 !important;
+                                                                                                                                                                                                            }
+                                                                                                                                                                                                            
+                                                                                                                                                                                                            /* ── EXPANDER ───────────────────────────────── */
+                                                                                                                                                                                                            [data-testid="stExpander"] {
+                                                                                                                                                                                                                border: 1px solid #90caf9;
+                                                                                                                                                                                                                    border-radius: 8px;
+                                                                                                                                                                                                                        background-color: #f8fbff;
+                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                        [data-testid="stExpander"] summary {
+                                                                                                                                                                                                                            color: #0a2540;
+                                                                                                                                                                                                                                font-weight: 600;
+                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                
+                                                                                                                                                                                                                                /* ── DIVIDER ────────────────────────────────── */
+                                                                                                                                                                                                                                hr {
+                                                                                                                                                                                                                                    border-color: #90caf9;
+                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                    
+                                                                                                                                                                                                                                    /* ── DATAFRAME / TABLE ──────────────────────── */
+                                                                                                                                                                                                                                    [data-testid="stDataFrame"] th {
+                                                                                                                                                                                                                                        background-color: #1565c0 !important;
+                                                                                                                                                                                                                                            color: #ffffff !important;
+                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                            [data-testid="stDataFrame"] td {
+                                                                                                                                                                                                                                                color: #0d1117;
+                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                
+                                                                                                                                                                                                                                                /* ── ALERT / WARNING / ERROR ────────────────── */
+                                                                                                                                                                                                                                                [data-testid="stAlert"] {
+                                                                                                                                                                                                                                                    border-radius: 8px;
+                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                    
+                                                                                                                                                                                                                                                    /* ── PLOTLY CHARTS ──────────────────────────── */
+                                                                                                                                                                                                                                                    .js-plotly-plot .plotly .bg {
+                                                                                                                                                                                                                                                        fill: #f0f6ff !important;
+                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                        </style>
+                                                                                                                                                                                                                                                        """, unsafe_allow_html=True
+
 with st.sidebar:
     st.markdown("## 📡 PulseCheck")
     st.caption("Brand Sentiment Intelligence")
