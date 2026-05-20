@@ -7,6 +7,13 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import main as analyzer
 
+st.set_page_config(
+    page_title="PulseCheck — Brand Sentiment",
+    page_icon="📡",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
 
 def sentiment_badge(sentiment):
     colours = {
