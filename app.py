@@ -275,7 +275,8 @@ if 'result_brand' not in st.session_state:
     st.session_state['result_brand'] = ''
 
 # ── Header ────────────────────────────────────────────────────────────────
-st.title('Brand Sentiment Analyzer')
+st.title('📡 PulseCheck')
+st.caption('Brand Sentiment Intelligence')
 st.markdown(
     'Enter a brand name to scrape TikTok, LinkedIn, Twitter/X, and Reddit '
     'for recent 2026 mentions and determine overall sentiment.'
