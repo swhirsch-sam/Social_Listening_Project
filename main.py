@@ -299,6 +299,47 @@ def fetch_reddit(brand):
     return results
 
 
+def filter_brand_relevant(posts, brand, brand_hint='', batch_size=50):
+        """Use Claude to filter out posts that are not about the brand/company."""
+        import json as _json
+        if not posts:
+                    return posts
+                client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+    hint_clause = f' ({brand_hint})' if brand_hint else ''
+    relevant = []
+    for i in range(0, len(posts), batch_size):
+                chunk = posts[i:i + batch_size]
+                numbered = '\n'.join(
+                                f"{j + 1}. {str(p.get('content', ''))[:300]}"
+                                for j, p in enumerate(chunk)
+                )
+                prompt = (
+                                f'You are filtering social media posts. Keep only posts that refer to '
+                                f'the brand/company "{brand}"{hint_clause}, not a person, place, or other '
+                                f'entity with the same name.\n\n'
+                                f'For each post below answer YES if it is about the {brand} brand/company, '
+                                f'or NO if it is not.\n\nPosts:\n{numbered}\n\n'
+                                f'Return a JSON array of YES/NO answers in order, e.g. ["YES","NO","YES"]'
+                )
+                try:
+                                response = client.messages.create(
+                                                    model=config.CLAUDE_MODEL,
+                                                    max_tokens=256,
+                                                    messages=[{'role': 'user', 'content': prompt}],
+                                )
+                                raw = response.content[0].text.strip()
+                                # extract JSON array from response
+            match = __import__('re').search(r'\[.*?\]', raw, __import__('re').DOTALL)
+            answers = _json.loads(match.group()) if match else []
+            for post, ans in zip(chunk, answers):
+                                if str(ans).upper() == 'YES':
+                                                        relevant.append(post)
+except Exception as e:
+            _log(f'Brand filter error (keeping chunk): {e}')
+            relevant.extend(chunk)
+    return relevant
+
+
 
 def _validate_sentiment(s):
     """Validate and normalise a sentiment string returned by Claude."""
@@ -353,7 +394,7 @@ def analyze_sentiment(posts):
     return results
 
 
-def run_analysis(brand):
+def run_analysis(brand, brand_hint=''):
     global source_warnings
     source_warnings = []
     all_posts = []
@@ -388,7 +429,13 @@ def run_analysis(brand):
     
     if not all_posts:
         detail = ' | '.join(source_warnings) if source_warnings else 'No content returned.'
-        return {'error': f"No data found for '{brand}'. Details: {detail}"}
+        # --- Brand relevance filter ---
+    _before_filter = len(all_posts)
+    all_posts = filter_brand_relevant(all_posts, brand, brand_hint)
+    _filter_dropped = _before_filter - len(all_posts)
+    if _filter_dropped:
+                _log(f'Brand filter: removed {_filter_dropped} off-brand posts, kept {len(all_posts)}')
+            return {'error': f"No data found for '{brand}'. Details: {detail}"}
     _log('Step 5/5: Conducting sentiment analysis...')
     analyzed = analyze_sentiment(all_posts)
     counts = {'positive': 0, 'negative': 0, 'neutral': 0}
