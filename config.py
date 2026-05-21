@@ -36,3 +36,7 @@ APIFY_MAX_RESULTS = 150        # max items per Apify actor run
 CLAUDE_MODEL          = "claude-haiku-4-5"
 CLAUDE_DELAY_SECONDS  = 0.5    # seconds to pause between Claude API calls
 
+# -- LLM brand-relevance filter ---------------------------------------------
+ENABLE_BRAND_FILTER = True     # set False to skip the brand-relevance check
+
+
