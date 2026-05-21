@@ -108,7 +108,7 @@ def fetch_tiktok(brand):
         _log(f'TikTok: run finished')
         for item in client.dataset(run['defaultDatasetId']).iterate_items():
             text = item.get('title') or item.get('text') or item.get('description') or ''
-            if not text:
+            if not text or len(text.strip()) < 15:
                 continue
             results.append({
                 'platform': 'TikTok',
@@ -170,7 +170,7 @@ def fetch_linkedin(brand):
                 item.get('subtitle') or '',
             ]
             text = ' '.join(p for p in parts if p).strip()
-            if not text:
+            if not text or len(text.strip()) < 15:
                 continue
             results.append({
                 'platform': 'LinkedIn',
@@ -227,7 +227,7 @@ def fetch_twitter(brand):
                 (item.get('retweetedTweet') or {}).get('text') or '',
             ]
             text_val = ' '.join(p for p in parts if p).strip()
-            if not text_val:
+            if not text_val or len(text_val.strip()) < 15:
                 continue
             results.append({
                 'platform': 'Twitter/X',
@@ -276,7 +276,7 @@ def fetch_reddit(brand):
             title = item.get('title') or ''
             body = item.get('body') or item.get('selftext') or ''
             text = (title + ' ' + body).strip()
-            if not text:
+            if not text or len(text.strip()) < 15:
                 continue
             results.append({
                 'platform': 'Reddit',
@@ -297,6 +297,14 @@ def fetch_reddit(brand):
         _log(f'Reddit: ERROR {e}')
     _log(f'Reddit: collected {len(results)} items')
     return results
+
+
+
+def _validate_sentiment(s):
+    """Validate and normalise a sentiment string returned by Claude."""
+    if isinstance(s, str) and s.strip().lower() in ('positive', 'negative', 'neutral'):
+        return s.strip().lower()
+    return 'neutral'
 
 
 def analyze_sentiment(posts):
@@ -340,9 +348,7 @@ def analyze_sentiment(posts):
             _log(f'Sentiment batch error (chunk {chunk_idx + 1}): {e} — defaulting to neutral')
             sentiments = []
         for i, post in enumerate(chunk):
-            s = sentiments[i] if i < len(sentiments) else 'neutral'
-            if s not in ('positive', 'negative', 'neutral'):
-                s = 'neutral'
+            s = _validate_sentiment(sentiments[i]) if i < len(sentiments) else 'neutral'
             results.append({**post, 'sentiment': s})
     return results
 
@@ -366,6 +372,20 @@ def run_analysis(brand):
     _lang_dropped = _before_lang - len(all_posts)
     if _lang_dropped:
         _log(f'Language filter: dropped {_lang_dropped} non-English/spam posts; {len(all_posts)} remain')
+    # --- Deduplication: remove posts with identical content ---
+    _before_dedup = len(all_posts)
+    _seen_hashes = set()
+    _deduped = []
+    for _p in all_posts:
+        _key = hash(_p.get('content', '')[:200])
+        if _key not in _seen_hashes:
+            _seen_hashes.add(_key)
+            _deduped.append(_p)
+    all_posts = _deduped
+    _dedup_dropped = _before_dedup - len(all_posts)
+    if _dedup_dropped:
+        _log(f'Deduplication: removed {_dedup_dropped} duplicate posts; {len(all_posts)} remain')
+    
     if not all_posts:
         detail = ' | '.join(source_warnings) if source_warnings else 'No content returned.'
         return {'error': f"No data found for '{brand}'. Details: {detail}"}
