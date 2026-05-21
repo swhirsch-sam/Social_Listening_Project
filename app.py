@@ -415,7 +415,7 @@ with st.form('brand_form'):
                     placeholder='e.g. automotive manufacturer, tech company, clothing brand...',
                     help='Helps filter out unrelated posts that share the same name as your brand.',
         )
-        submitted = st.form_submit_button('Analyze Sentiment', use_container_width=True)
+            submitted = st.form_submit_button('Analyze Sentiment', use_container_width=True)
 
 # ── Run analysis ──────────────────────────────────────────────────────────
 if submitted:
