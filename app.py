@@ -440,7 +440,7 @@ if submitted:
 
             analyzer.set_log_callback(progress_aware_log)
             try:
-                                results = analyzer.run_analysis(brand_name)
+                results = analyzer.run_analysis(brand_name)
                 progress_bar.progress(100)
                 status.update(
                     label=f'Done analyzing \'{query_display}\'',
