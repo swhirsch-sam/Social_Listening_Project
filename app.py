@@ -170,9 +170,12 @@ def render_results(brand_name, results):
     # --- sentiment breakdown + bar chart ---
     st.markdown('### Sentiment Breakdown')
     c1, c2, c3 = st.columns(3)
-    c1.metric('Positive', pos, f'{pos/total:.0%} of posts' if total else '—')
-    c2.metric('Neutral',  neu, f'{neu/total:.0%} of posts' if total else '—')
-    c3.metric('Negative', neg, f'{neg/total:.0%} of posts' if total else '—')
+    c1.metric('Positive', pos)
+    c1.markdown(f'<div style="color:#2ecc71;font-weight:600;font-size:0.85rem">{pos/total:.0%} of posts</div>' if total else '', unsafe_allow_html=True)
+    c2.metric('Neutral',  neu)
+    c2.markdown(f'<div style="color:#f0ad4e;font-weight:600;font-size:0.85rem">{neu/total:.0%} of posts</div>' if total else '', unsafe_allow_html=True)
+    c3.metric('Negative', neg)
+    c3.markdown(f'<div style="color:#e74c3c;font-weight:600;font-size:0.85rem">{neg/total:.0%} of posts</div>' if total else '', unsafe_allow_html=True)
     fig = go.Figure(go.Bar(
         x=['Positive', 'Neutral', 'Negative'],
         y=[pos, neu, neg],
