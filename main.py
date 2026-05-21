@@ -442,6 +442,7 @@ def run_analysis(brand, brand_hint=''):
         _filter_dropped = _before_filter - len(all_posts)
         if _filter_dropped:
             _log(f'Brand filter: removed {_filter_dropped} off-brand posts, kept {len(all_posts)}')
+    
     if not all_posts:
         detail = ' | '.join(source_warnings) if source_warnings else 'No content returned.'
         return {'error': f"No data found for '{brand}'. Details: {detail}"}
