@@ -9,7 +9,7 @@ import json
 import re
 import anthropic
 from collections import Counter
-from apify_client import ApifyClient
+from apify_client import ApifyClien
 from urllib.parse import quote_plus
 import config
 
@@ -209,7 +209,7 @@ def fetch_twitter(brand):
             "maxItems": config.APIFY_MAX_RESULTS,
             "queryType": "Latest",
             "lang": "en",
-            "since":(datetime.date.today() - datetime.timedelta(days=365)).strftime('%Y-%m-%d'),
+            "since":(datetime.date.today() - datetime.timedelta(days=365)).strftime('%Y-%m-%d')
         }
         _log(f"Twitter/X: starting Apify run for '{query}'")
         run = client.actor(config.APIFY_TWITTER_ACTOR).call(
@@ -300,6 +300,55 @@ def fetch_reddit(brand):
 
 
 
+def filter_brand_relevant(posts, brand, brand_hint='', batch_size=50):
+    """Use Claude to filter out posts that are not about the brand/company.
+
+    Posts are evaluated in batches. If the API call fails for any batch,
+    that batch is kept (fail-open) so no posts are silently dropped.
+    """
+    if not posts:
+        return posts
+    if not config.ENABLE_BRAND_FILTER:
+        return posts
+    client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+    hint_clause = f' ({brand_hint})' if brand_hint else ''
+    relevant = []
+    for i in range(0, len(posts), batch_size):
+        chunk = posts[i:i + batch_size]
+        numbered = '\n'.join(
+            f"{j + 1}. {str(p.get('content', ''))[:300]}"
+            for j, p in enumerate(chunk)
+        )
+        prompt = (
+            f'You are filtering social media posts. Keep only posts that refer to '
+            f'the brand/company "{brand}"{hint_clause}, not a person, place, or other '
+            f'entity with the same name.\n\n'
+            f'For each post below, reply YES if it is about the {brand} brand/company, '
+            f'or NO if it is not.\n\nPosts:\n{numbered}\n\n'
+            f'Return a JSON array of YES/NO answers in order, e.g. ["YES","NO","YES"]'
+        )
+        try:
+            response = client.messages.create(
+                model=config.CLAUDE_MODEL,
+                max_tokens=256,
+                messages=[{'role': 'user', 'content': prompt}],
+            )
+            raw = response.content[0].text.strip()
+            match = re.search(r'\[.*?\]', raw, re.DOTALL)
+            answers = json.loads(match.group()) if match else []
+            for post, ans in zip(chunk, answers):
+                if str(ans).upper() == 'YES':
+                    relevant.append(post)
+            if not answers:
+                _log(f'Brand filter: no valid JSON in response for chunk, keeping chunk')
+                relevant.extend(chunk)
+        except Exception as e:
+            _log(f'Brand filter error (keeping chunk): {e}')
+            relevant.extend(chunk)
+        time.sleep(config.CLAUDE_DELAY_SECONDS)
+    return relevant
+
+
 def _validate_sentiment(s):
     """Validate and normalise a sentiment string returned by Claude."""
     if isinstance(s, str) and s.strip().lower() in ('positive', 'negative', 'neutral'):
@@ -353,7 +402,7 @@ def analyze_sentiment(posts):
     return results
 
 
-def run_analysis(brand):
+def run_analysis(brand, brand_hint=''):
     global source_warnings
     source_warnings = []
     all_posts = []
@@ -386,6 +435,13 @@ def run_analysis(brand):
     if _dedup_dropped:
         _log(f'Deduplication: removed {_dedup_dropped} duplicate posts; {len(all_posts)} remain')
     
+    # --- LLM brand relevance filter ---
+    if config.ENABLE_BRAND_FILTER:
+        _before_filter = len(all_posts)
+        all_posts = filter_brand_relevant(all_posts, brand, brand_hint)
+        _filter_dropped = _before_filter - len(all_posts)
+        if _filter_dropped:
+            _log(f'Brand filter: removed {_filter_dropped} off-brand posts, kept {len(all_posts)}')
     if not all_posts:
         detail = ' | '.join(source_warnings) if source_warnings else 'No content returned.'
         return {'error': f"No data found for '{brand}'. Details: {detail}"}
