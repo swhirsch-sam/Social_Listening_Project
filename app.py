@@ -170,9 +170,9 @@ def render_results(brand_name, results):
     # --- sentiment breakdown + bar chart ---
     st.markdown('### Sentiment Breakdown')
     c1, c2, c3 = st.columns(3)
-    c1.metric('Positive', pos)
-    c2.metric('Neutral',  neu)
-    c3.metric('Negative', neg)
+    c1.metric('Positive', pos, f'{pos/total:.0%} of posts' if total else '—')
+    c2.metric('Neutral',  neu, f'{neu/total:.0%} of posts' if total else '—')
+    c3.metric('Negative', neg, f'{neg/total:.0%} of posts' if total else '—')
     fig = go.Figure(go.Bar(
         x=['Positive', 'Neutral', 'Negative'],
         y=[pos, neu, neg],
@@ -189,6 +189,50 @@ def render_results(brand_name, results):
     )
     st.plotly_chart(fig, use_container_width=True)
     st.divider()
+
+    # --- highlight cards: most positive & most negative post ---
+    _all_scored = results.get('posts', [])
+    _pos_posts = [p for p in _all_scored if p.get('sentiment') == 'positive']
+    _neg_posts = [p for p in _all_scored if p.get('sentiment') == 'negative']
+    if _pos_posts or _neg_posts:
+        st.markdown('### Highlights')
+        _h_col1, _h_col2 = st.columns(2)
+        with _h_col1:
+            st.markdown(
+                '<div style="background:#f0fff4;border-left:4px solid #2ecc71;'
+                'border-radius:8px;padding:14px 16px;min-height:110px">'
+                '<div style="font-weight:700;color:#27ae60;margin-bottom:6px">🟢 Most Positive</div>'
+                + (
+                    '<div style="font-size:0.9rem;color:#0d1117">'
+                    + (_pos_posts[0].get('content','')[:280] or '—')
+                    + '</div>'
+                    '<div style="margin-top:8px;font-size:0.78rem;color:#555">'
+                    + _pos_posts[0].get('platform','') + ' · ' + _pos_posts[0].get('author','')
+                    + ('  <a href="' + _pos_posts[0].get('url','') + '" target="_blank">View post</a>' if _pos_posts[0].get('url') else '')
+                    + '</div>'
+                    if _pos_posts else '<div style="color:#555;font-size:0.9rem">No positive posts found.</div>'
+                )
+                + '</div>',
+                unsafe_allow_html=True,
+            )
+        with _h_col2:
+            st.markdown(
+                '<div style="background:#fff5f5;border-left:4px solid #e74c3c;'
+                'border-radius:8px;padding:14px 16px;min-height:110px">'
+                '<div style="font-weight:700;color:#c0392b;margin-bottom:6px">🔴 Most Negative</div>'
+                + (
+                    '<div style="font-size:0.9rem;color:#0d1117">'
+                    + (_neg_posts[0].get('content','')[:280] or '—')
+                    + '</div>'
+                    '<div style="margin-top:8px;font-size:0.78rem;color:#555">'
+                    + _neg_posts[0].get('platform','') + ' · ' + _neg_posts[0].get('author','')
+                    + ('  <a href="' + _neg_posts[0].get('url','') + '" target="_blank">View post</a>' if _neg_posts[0].get('url') else '')
+                    + '</div>'
+                    if _neg_posts else '<div style="color:#555;font-size:0.9rem">No negative posts found.</div>'
+                )
+                + '</div>',
+                unsafe_allow_html=True,
+            )
 
     # --- top terms ---
     # main.py returns plain word lists e.g. ['great', 'fast', 'quality']
