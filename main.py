@@ -5,7 +5,7 @@ Social Listening - Brand Sentiment Analyzer
 
 import time
 import datetime
-import json
+import jso
 import re
 import anthropic
 from collections import Counter
@@ -429,13 +429,13 @@ def run_analysis(brand, brand_hint=''):
     
     if not all_posts:
         detail = ' | '.join(source_warnings) if source_warnings else 'No content returned.'
-        # --- Brand relevance filter ---
+        return {'error': f"No data found for '{brand}'. Details: {detail}"}
+    # --- Brand relevance filter ---
     _before_filter = len(all_posts)
     all_posts = filter_brand_relevant(all_posts, brand, brand_hint)
     _filter_dropped = _before_filter - len(all_posts)
     if _filter_dropped:
                 _log(f'Brand filter: removed {_filter_dropped} off-brand posts, kept {len(all_posts)}')
-            return {'error': f"No data found for '{brand}'. Details: {detail}"}
     _log('Step 5/5: Conducting sentiment analysis...')
     analyzed = analyze_sentiment(all_posts)
     counts = {'positive': 0, 'negative': 0, 'neutral': 0}
