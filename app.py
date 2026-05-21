@@ -410,7 +410,12 @@ with st.form('brand_form'):
         placeholder='e.g. Nike, Airbnb, OpenAI...',
         help='Enter the brand or company name you want to analyze.',
     )
-    submitted = st.form_submit_button('Analyze Sentiment', use_container_width=True)
+            brand_hint = st.text_input(
+                            label='Brand description (optional)',
+                            placeholder='e.g. automotive manufacturer, tech company, clothing brand...',
+                            help='Helps filter out unrelated posts that share the same name as your brand.',
+            )
+        submitted = st.form_submit_button('Analyze Sentiment', use_container_width=True)
 
 # ── Run analysis ──────────────────────────────────────────────────────────
 if submitted:
@@ -440,7 +445,7 @@ if submitted:
 
             analyzer.set_log_callback(progress_aware_log)
             try:
-                results = analyzer.run_analysis(brand_name)
+                results = analyzer.run_analysis(brand_name, brand_hint)
                 progress_bar.progress(100)
                 status.update(
                     label=f'Done analyzing \'{query_display}\'',
