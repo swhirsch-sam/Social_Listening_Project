@@ -5,7 +5,7 @@ Social Listening - Brand Sentiment Analyzer
 
 import time
 import datetime
-import jso
+import json
 import re
 import anthropic
 from collections import Counter
