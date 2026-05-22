@@ -103,7 +103,6 @@ def fetch_tiktok(brand):
         run = client.actor(config.APIFY_TIKTOK_ACTOR).call(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
-            wait_secs=600,
         )
         _log(f'TikTok: run finished')
         for item in client.dataset(run['defaultDatasetId']).iterate_items():
@@ -158,7 +157,6 @@ def fetch_linkedin(brand):
         run = client.actor(config.APIFY_LINKEDIN_ACTOR).call(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
-            wait_secs=600,
         )
         _log(f'LinkedIn: run finished')
         for item in client.dataset(run['defaultDatasetId']).iterate_items():
@@ -215,7 +213,6 @@ def fetch_twitter(brand):
         run = client.actor(config.APIFY_TWITTER_ACTOR).call(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
-            wait_secs=600,
         )
         _log(f'Twitter/X: run finished')
         for item in client.dataset(run['defaultDatasetId']).iterate_items():
@@ -269,7 +266,6 @@ def fetch_reddit(brand):
         run = client.actor(config.APIFY_REDDIT_ACTOR).call(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
-            wait_secs=600,
         )
         _log(f'Reddit: run finished')
         for item in client.dataset(run['defaultDatasetId']).iterate_items():
