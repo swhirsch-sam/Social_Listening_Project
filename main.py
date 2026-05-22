@@ -100,12 +100,13 @@ def fetch_tiktok(brand):
                         "dateTo": datetime.date.today().strftime("%Y-%m-%d"),
         }
         _log(f"TikTok: starting run for '{query}'")
-        run = client.actor(config.APIFY_TIKTOK_ACTOR).call(
+        run = client.actor(config.APIFY_TIKTOK_ACTOR).start(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
         )
+        client.run(run.id).wait_for_finish()
         _log(f'TikTok: run finished')
-        for item in client.dataset(run['defaultDatasetId']).iterate_items():
+        for item in client.dataset(run.default_dataset_id).iterate_items():
             text = item.get('title') or item.get('text') or item.get('description') or ''
             if not text or len(text.strip()) < 15:
                 continue
@@ -154,12 +155,13 @@ def fetch_linkedin(brand):
                         "endDate": datetime.date.today().strftime("%Y-%m-%d"),
         }
         _log(f"LinkedIn: starting run for '{query}'")
-        run = client.actor(config.APIFY_LINKEDIN_ACTOR).call(
+        run = client.actor(config.APIFY_LINKEDIN_ACTOR).start(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
         )
+        client.run(run.id).wait_for_finish()
         _log(f'LinkedIn: run finished')
-        for item in client.dataset(run['defaultDatasetId']).iterate_items():
+        for item in client.dataset(run.default_dataset_id).iterate_items():
             parts = [
                 item.get('title') or '',
                 item.get('text') or '',
@@ -210,12 +212,13 @@ def fetch_twitter(brand):
             "since":(datetime.date.today() - datetime.timedelta(days=365)).strftime('%Y-%m-%d')
         }
         _log(f"Twitter/X: starting Apify run for '{query}'")
-        run = client.actor(config.APIFY_TWITTER_ACTOR).call(
+        run = client.actor(config.APIFY_TWITTER_ACTOR).start(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
         )
+        client.run(run.id).wait_for_finish()
         _log(f'Twitter/X: run finished')
-        for item in client.dataset(run['defaultDatasetId']).iterate_items():
+        for item in client.dataset(run.default_dataset_id).iterate_items():
             parts = [
                 item.get('text') or '',
                 item.get('fullText') or '',
@@ -263,12 +266,13 @@ def fetch_reddit(brand):
             "includeComments": False,
         }
         _log(f"Reddit: starting run for '{query}'")
-        run = client.actor(config.APIFY_REDDIT_ACTOR).call(
+        run = client.actor(config.APIFY_REDDIT_ACTOR).start(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
         )
+        client.run(run.id).wait_for_finish()
         _log(f'Reddit: run finished')
-        for item in client.dataset(run['defaultDatasetId']).iterate_items():
+        for item in client.dataset(run.default_dataset_id).iterate_items():
             title = item.get('title') or ''
             body = item.get('body') or item.get('selftext') or ''
             text = (title + ' ' + body).strip()
