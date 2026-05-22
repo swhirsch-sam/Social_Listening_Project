@@ -9,7 +9,7 @@ import json
 import re
 import anthropic
 from collections import Counter
-from apify_client import ApifyClien
+from apify_client import ApifyClient
 from urllib.parse import quote_plus
 import config
 
