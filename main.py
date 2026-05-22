@@ -5,7 +5,7 @@ Social Listening - Brand Sentiment Analyzer
 
 import time
 import datetime
-import json
+import jso
 import re
 import anthropic
 from collections import Counter
@@ -320,12 +320,17 @@ def filter_brand_relevant(posts, brand, brand_hint='', batch_size=50):
             for j, p in enumerate(chunk)
         )
         prompt = (
-            f'You are filtering social media posts. Keep only posts that refer to '
-            f'the brand/company "{brand}"{hint_clause}, not a person, place, or other '
-            f'entity with the same name.\n\n'
-            f'For each post below, reply YES if it is about the {brand} brand/company, '
-            f'or NO if it is not.\n\nPosts:\n{numbered}\n\n'
-            f'Return a JSON array of YES/NO answers in order, e.g. ["YES","NO","YES"]'
+            f'You are a social media content filter. Your job is to decide whether each post '
+            f'is about the brand or company named "{brand}"{hint_clause}.\n\n'
+            f'Important: "{brand}" may refer to multiple things (a company, a person, a place, '
+            f'a common word, etc.). Only keep posts where the context makes it clear the author '
+            f'is talking about a commercial brand or company -- not a celebrity, athlete, '
+            f'fictional character, place, or unrelated use of the word.\n\n'
+            f'For each numbered post below, reply YES if it is clearly about the {brand} '
+            f'brand/company, or NO if it is not or if you are unsure.\n\n'
+            f'Posts:\n{numbered}\n\n'
+            f'Return ONLY a JSON array of YES/NO answers in order, e.g. ["YES","NO","YES"].\n'
+            f'No explanation, just the JSON array.'
         )
         try:
             response = client.messages.create(
