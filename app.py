@@ -104,7 +104,7 @@ def sentiment_badge(sentiment):
 
 def _ui_log_factory(log_lines, log_box):
     def _ui_log(line):
-        log_lines.append(line)
+        log_lines.append(__import__('re').sub(r'^\[\d\d:\d\d:\d\d\] ', '', line))
         log_box.code('\n'.join(log_lines[-200:]), language='text')
     return _ui_log
 
