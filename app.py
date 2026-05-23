@@ -147,17 +147,18 @@ def render_results(brand_name, results):
         ),
     )
     if confidence >= 0.65:
-        _sig_bg, _sig_fg, _sig_label = '#d4edda', '#155724', 'Strong signal'
+        _sig_bg, _sig_fg, _sig_label, _sig_desc = '#d4edda', '#155724', 'Strong signal', '65%+ of posts align — strong, consistent sentiment.'
     elif confidence >= 0.50:
-        _sig_bg, _sig_fg, _sig_label = '#fff3cd', '#856404', 'Moderate signal'
+        _sig_bg, _sig_fg, _sig_label, _sig_desc = '#fff3cd', '#856404', 'Moderate signal', '50–65% agreement — a lean, but some mixed opinions.'
     else:
-        _sig_bg, _sig_fg, _sig_label = '#f8d7da', '#721c24', 'Weak signal'
+        _sig_bg, _sig_fg, _sig_label, _sig_desc = '#f8d7da', '#721c24', 'Weak signal', 'Under 50% agreement — mixed or limited data, interpret with caution.'
     col_c.markdown(
         f'<div style="background:{_sig_bg};color:{_sig_fg};padding:4px 8px;'
         f'border-radius:6px;font-size:0.78rem;font-weight:600;text-align:center;margin-top:4px">'
         f'{_sig_label}</div>',
         unsafe_allow_html=True,
     )
+    col_c.caption(_sig_desc)
     col_t.metric('Posts Analyzed', total)
 
     if warnings:
