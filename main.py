@@ -135,6 +135,25 @@ def fetch_tiktok(brand):
     return results
 
 
+def _linkedin_author(item):
+    """Extract author name from a linkedin-post Apify actor result item."""
+    # Top-level flat field used by supreme_coder/linkedin-post
+    if item.get('authorFullName'):
+        return item['authorFullName']
+    # Dict with firstName / lastName
+    author = item.get('author')
+    if isinstance(author, dict):
+        full = ' '.join(filter(None, [author.get('firstName'), author.get('lastName')])).strip()
+        if full:
+            return full
+        return author.get('universalName') or author.get('name') or ''
+    # Plain string fallback
+    if isinstance(author, str) and author:
+        return author
+    # Other top-level fields
+    return item.get('authorProfileId') or item.get('name') or 'Unknown'
+
+
 def fetch_linkedin(brand):
     global source_warnings
     if not config.ENABLE_LINKEDIN:
@@ -174,7 +193,7 @@ def fetch_linkedin(brand):
                 continue
             results.append({
                 'platform': 'LinkedIn',
-                'author': ((item.get('author') or {}).get('name') or (item.get('author') or {}).get('universalName') or item.get('name') or 'unknown') if isinstance(item.get('author'), dict) else (item.get('author') or item.get('name') or 'unknown'),
+                'author': _linkedin_author(item),
                 'content': text[:500],
                 'url': (
                     item.get('postUrl')
