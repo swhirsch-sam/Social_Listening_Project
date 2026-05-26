@@ -118,7 +118,10 @@ def _reddit_time_filter(date_from, date_to):
         return 'all'
 
 def _parse_post_date(date_str):
-    """Parse a post date string or unix timestamp into a datetime.date, or return None."""
+    """Parse a post date string or unix timestamp into a datetime.date, or return None.
+
+    Handles: unix timestamps, ISO-8601 strings, Twitter date strings.
+    """
     if date_str is None:
         return None
     # Unix timestamp (int or float)
@@ -130,13 +133,18 @@ def _parse_post_date(date_str):
     date_str = str(date_str).strip()
     if not date_str:
         return None
-    # Extract YYYY-MM-DD from the start of any ISO-like string (handles timezones too)
-    m = re.match(r'(\d{4})-(\d{2})-(\d{2})', date_str)
+    # ISO format: try YYYY-MM-DD anywhere in the string
+    m = re.search(r'(\d{4})-(\d{2})-(\d{2})', date_str)
     if m:
         try:
             return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
         except ValueError:
-            return None
+            pass
+    # Twitter format: 'Mon Jan 15 14:30:00 +0000 2024'
+    try:
+        return datetime.datetime.strptime(date_str, '%a %b %d %H:%M:%S %z %Y').date()
+    except (ValueError, TypeError):
+        pass
     return None
 
 
@@ -200,7 +208,7 @@ def fetch_tiktok(brand, date_from=None, date_to=None):
                 'platform': 'TikTok',
                 'author': (item.get('channel') or {}).get('username') or item.get('authorMeta', {}).get('name') or 'unknown',
                 'content': text[:500],
-                'date': item.get('createTimeISO') or (str(datetime.datetime.utcfromtimestamp(item['createTime']).date()) if item.get('createTime') else None),
+                'date': item.get('createTimeISO') or (str(datetime.datetime.utcfromtimestamp(int(item['createTime'])).date()) if item.get('createTime') else None) or (str(datetime.datetime.utcfromtimestamp(int(str(item.get('id', '') or '')) >> 32).date()) if (str(item.get('id', '') or '').isdigit()) else None),
                 'url': (
                     item.get('postPage')
                     or item.get('webVideoUrl')
@@ -282,7 +290,7 @@ def fetch_linkedin(brand, date_from=None, date_to=None):
                 'platform': 'LinkedIn',
                 'author': _linkedin_author(item),
                 'content': text[:500],
-                'date': item.get('postedAt') or item.get('date') or item.get('publishedAt') or None,
+                'date': item.get('date') or item.get('postDate') or item.get('publishedAt') or item.get('postedDate') or None,
                 'url': (
                     item.get('postUrl')
                     or item.get('url')
@@ -341,7 +349,7 @@ def fetch_twitter(brand, date_from=None, date_to=None):
                 'platform': 'Twitter/X',
                 'author': item.get('author', {}).get('userName') or item.get('username') or 'unknown',
                 'content': text_val[:500],
-                'date': item.get('createdAt') or item.get('date') or None,
+                'date': item.get('createdAt') or item.get('date') or (str(datetime.datetime.utcfromtimestamp(int(item['timestamp_ms']) / 1000).date()) if item.get('timestamp_ms') else None) or None,
                 'url': (
                     item.get('url')
                     or item.get('tweetUrl')
@@ -391,7 +399,7 @@ def fetch_reddit(brand, date_from=None, date_to=None):
                 'platform': 'Reddit',
                 'author': item.get('author') or 'unknown',
                 'content': text[:500],
-                'date': item.get('createdAt') or (str(datetime.datetime.utcfromtimestamp(item['created']).date()) if item.get('created') else None) or item.get('date') or None,
+                'date': item.get('createdAt') or item.get('date') or (str(datetime.datetime.utcfromtimestamp(int(item['createdUtc'])).date()) if item.get('createdUtc') else None) or (str(datetime.datetime.utcfromtimestamp(int(item['created'])).date()) if item.get('created') else None) or None,
                 'url': (
                     (
                         'https://www.reddit.com' + item.get('permalink')
