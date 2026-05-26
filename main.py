@@ -84,7 +84,41 @@ def extract_top_terms(posts, sentiment, brand, n=3):
     return [word for word, _ in Counter(words).most_common(n)]
 
 
-def fetch_tiktok(brand):
+
+
+def _linkedin_date_param(date_from, date_to):
+    """Return the LinkedIn datePosted URL parameter based on the requested date range."""
+    today = datetime.date.today()
+    from_date = date_from or (today - datetime.timedelta(days=365))
+    days = (today - from_date).days
+    if days <= 1:
+        return '&datePosted=past-24h'
+    elif days <= 7:
+        return '&datePosted=past-week'
+    elif days <= 31:
+        return '&datePosted=past-month'
+    else:
+        return '&datePosted=past-year'
+
+
+def _reddit_time_filter(date_from, date_to):
+    """Return the Reddit timeFilter preset closest to the requested date range."""
+    today = datetime.date.today()
+    from_date = date_from or (today - datetime.timedelta(days=365))
+    days = (today - from_date).days
+    if days <= 1:
+        return 'day'
+    elif days <= 7:
+        return 'week'
+    elif days <= 31:
+        return 'month'
+    elif days <= 365:
+        return 'year'
+    else:
+        return 'all'
+
+
+def fetch_tiktok(brand, date_from=None, date_to=None):
     global source_warnings
     if not config.ENABLE_TIKTOK:
         return []
@@ -96,8 +130,8 @@ def fetch_tiktok(brand):
             "keywords": [query],
             "maxItems": config.APIFY_MAX_RESULTS,
             "sortType": "RELEVANCE",
-                        "dateFrom": (datetime.date.today() - datetime.timedelta(days=365)).strftime("%Y-%m-%d"),
-                        "dateTo": datetime.date.today().strftime("%Y-%m-%d"),
+                        "dateFrom": (date_from or (datetime.date.today() - datetime.timedelta(days=365))).strftime("%Y-%m-%d"),
+                        "dateTo": (date_to or datetime.date.today()).strftime("%Y-%m-%d"),
         }
         _log(f"TikTok: starting run for '{query}'")
         run = client.actor(config.APIFY_TIKTOK_ACTOR).start(
@@ -154,7 +188,7 @@ def _linkedin_author(item):
     return item.get('authorProfileId') or item.get('name') or 'Unknown'
 
 
-def fetch_linkedin(brand):
+def fetch_linkedin(brand, date_from=None, date_to=None):
     global source_warnings
     if not config.ENABLE_LINKEDIN:
         return []
@@ -165,13 +199,13 @@ def fetch_linkedin(brand):
         search_url = (
             'https://www.linkedin.com/search/results/content/?keywords='
             + quote_plus(query)
-            + '&datePosted=past-year'
+            + _linkedin_date_param(date_from, date_to)
         )
         run_input = {
             "urls": [search_url],
             "count": config.APIFY_MAX_RESULTS,
-                        "startDate": (datetime.date.today() - datetime.timedelta(days=365)).strftime("%Y-%m-%d"),
-                        "endDate": datetime.date.today().strftime("%Y-%m-%d"),
+                        "startDate": (date_from or (datetime.date.today() - datetime.timedelta(days=365))).strftime("%Y-%m-%d"),
+                        "endDate": (date_to or datetime.date.today()).strftime("%Y-%m-%d"),
         }
         _log(f"LinkedIn: starting run for '{query}'")
         run = client.actor(config.APIFY_LINKEDIN_ACTOR).start(
@@ -211,7 +245,7 @@ def fetch_linkedin(brand):
     return results
 
 
-def fetch_twitter(brand):
+def fetch_twitter(brand, date_from=None, date_to=None):
     """
     Fetch tweets via Apify (kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest).
     ntscraper was removed because public Nitter instances are unreliable.
@@ -228,7 +262,8 @@ def fetch_twitter(brand):
             "maxItems": config.APIFY_MAX_RESULTS,
             "queryType": "Latest",
             "lang": "en",
-            "since":(datetime.date.today() - datetime.timedelta(days=365)).strftime('%Y-%m-%d')
+            "since": (date_from or (datetime.date.today() - datetime.timedelta(days=365))).strftime('%Y-%m-%d'),
+            "until": (date_to or datetime.date.today()).strftime('%Y-%m-%d')
         }
         _log(f"Twitter/X: starting Apify run for '{query}'")
         run = client.actor(config.APIFY_TWITTER_ACTOR).start(
@@ -269,7 +304,7 @@ def fetch_twitter(brand):
         _log(f'Twitter/X: ERROR {e}')
     _log(f'Twitter/X: collected {len(results)} items')
     return results
-def fetch_reddit(brand):
+def fetch_reddit(brand, date_from=None, date_to=None):
     global source_warnings
     if not config.ENABLE_REDDIT:
         return []
@@ -281,7 +316,7 @@ def fetch_reddit(brand):
             "searchQuery": query,
             "maxPostsPerSource": config.APIFY_MAX_RESULTS,
             "sort": "relevance",
-            "timeFilter": "year",
+            "timeFilter": _reddit_time_filter(date_from, date_to),
             "includeComments": False,
         }
         _log(f"Reddit: starting run for '{query}'")
@@ -426,18 +461,18 @@ def analyze_sentiment(posts):
     return results
 
 
-def run_analysis(brand, brand_hint=''):
+def run_analysis(brand, brand_hint='', date_from=None, date_to=None):
     global source_warnings
     source_warnings = []
     all_posts = []
     _log('Step 1/5: TikTok')
-    all_posts.extend(fetch_tiktok(brand))
+    all_posts.extend(fetch_tiktok(brand, date_from=date_from, date_to=date_to))
     _log('Step 2/5: LinkedIn')
-    all_posts.extend(fetch_linkedin(brand))
+    all_posts.extend(fetch_linkedin(brand, date_from=date_from, date_to=date_to))
     _log('Step 3/5: Twitter/X')
-    all_posts.extend(fetch_twitter(brand))
+    all_posts.extend(fetch_twitter(brand, date_from=date_from, date_to=date_to))
     _log('Step 4/5: Reddit')
-    all_posts.extend(fetch_reddit(brand))
+    all_posts.extend(fetch_reddit(brand, date_from=date_from, date_to=date_to))
     _log(f'Fetching complete: {len(all_posts)} posts')
     # --- English / spam filter ---
     _before_lang = len(all_posts)
