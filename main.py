@@ -117,6 +117,58 @@ def _reddit_time_filter(date_from, date_to):
     else:
         return 'all'
 
+def _parse_post_date(date_str):
+    """Parse a post date string or unix timestamp into a datetime.date, or return None."""
+    if date_str is None:
+        return None
+    # Unix timestamp (int or float)
+    if isinstance(date_str, (int, float)):
+        try:
+            return datetime.datetime.utcfromtimestamp(float(date_str)).date()
+        except (OSError, ValueError, OverflowError):
+            return None
+    date_str = str(date_str).strip()
+    if not date_str:
+        return None
+    # Extract YYYY-MM-DD from the start of any ISO-like string (handles timezones too)
+    m = re.match(r'(\d{4})-(\d{2})-(\d{2})', date_str)
+    if m:
+        try:
+            return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except ValueError:
+            return None
+    return None
+
+
+def _filter_posts_by_date(posts, date_from, date_to):
+    """Drop posts whose date falls outside [date_from, date_to].
+
+    Posts with no parseable date are kept (fail-open) so no data is
+    silently lost when a platform returns an unexpected date format.
+    """
+    if not date_from and not date_to:
+        return posts
+    kept = []
+    dropped = 0
+    for post in posts:
+        raw = post.get('date')
+        d = _parse_post_date(raw)
+        if d is None:
+            # Unknown date: keep it (fail-open)
+            kept.append(post)
+            continue
+        if date_from and d < date_from:
+            dropped += 1
+            continue
+        if date_to and d > date_to:
+            dropped += 1
+            continue
+        kept.append(post)
+    if dropped:
+        _log(f'Date filter: dropped {dropped} out-of-range posts; {len(kept)} remain')
+    return kept
+
+
 
 def fetch_tiktok(brand, date_from=None, date_to=None):
     global source_warnings
@@ -148,6 +200,7 @@ def fetch_tiktok(brand, date_from=None, date_to=None):
                 'platform': 'TikTok',
                 'author': (item.get('channel') or {}).get('username') or item.get('authorMeta', {}).get('name') or 'unknown',
                 'content': text[:500],
+                'date': item.get('createTimeISO') or (str(datetime.datetime.utcfromtimestamp(item['createTime']).date()) if item.get('createTime') else None),
                 'url': (
                     item.get('postPage')
                     or item.get('webVideoUrl')
@@ -229,6 +282,7 @@ def fetch_linkedin(brand, date_from=None, date_to=None):
                 'platform': 'LinkedIn',
                 'author': _linkedin_author(item),
                 'content': text[:500],
+                'date': item.get('postedAt') or item.get('date') or item.get('publishedAt') or None,
                 'url': (
                     item.get('postUrl')
                     or item.get('url')
@@ -287,6 +341,7 @@ def fetch_twitter(brand, date_from=None, date_to=None):
                 'platform': 'Twitter/X',
                 'author': item.get('author', {}).get('userName') or item.get('username') or 'unknown',
                 'content': text_val[:500],
+                'date': item.get('createdAt') or item.get('date') or None,
                 'url': (
                     item.get('url')
                     or item.get('tweetUrl')
@@ -336,6 +391,7 @@ def fetch_reddit(brand, date_from=None, date_to=None):
                 'platform': 'Reddit',
                 'author': item.get('author') or 'unknown',
                 'content': text[:500],
+                'date': item.get('createdAt') or (str(datetime.datetime.utcfromtimestamp(item['created']).date()) if item.get('created') else None) or item.get('date') or None,
                 'url': (
                     (
                         'https://www.reddit.com' + item.get('permalink')
@@ -474,6 +530,12 @@ def run_analysis(brand, brand_hint='', date_from=None, date_to=None):
     _log('Step 4/5: Reddit')
     all_posts.extend(fetch_reddit(brand, date_from=date_from, date_to=date_to))
     _log(f'Fetching complete: {len(all_posts)} posts')
+    # --- Date range filter: drop posts outside [date_from, date_to] ---
+    _before_date = len(all_posts)
+    all_posts = _filter_posts_by_date(all_posts, date_from, date_to)
+    _date_dropped = _before_date - len(all_posts)
+    if _date_dropped:
+        _log(f'Date filter: removed {_date_dropped} out-of-range posts; {len(all_posts)} remain')
     # --- English / spam filter ---
     _before_lang = len(all_posts)
     all_posts = [p for p in all_posts if _is_english(p.get('content', ''))]
