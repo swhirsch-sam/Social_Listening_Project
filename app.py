@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import datetime
 import plotly.graph_objects as go
 import sys
 import os
@@ -399,8 +400,8 @@ if 'result_brand' not in st.session_state:
 st.title('📡 PulseCheck')
 st.caption('Brand Sentiment Intelligence')
 st.markdown(
-    'Enter a brand name to scrape TikTok, LinkedIn, Twitter/X, and Reddit '
-            'for mentions from the past calendar year and determine overall sentiment.'
+    'Enter a brand name and optionally a custom date range to scrape TikTok, LinkedIn, Twitter/X, and Reddit '
+            'for mentions and determine overall sentiment.'
 )
 st.divider()
 
@@ -419,6 +420,26 @@ with st.form('brand_form'):
             'unrelated posts (e.g. people or places with the same name).'
         ),
     )
+    st.markdown('**Date Range** (optional)')
+    col1, col2 = st.columns(2)
+    with col1:
+        date_from = st.date_input(
+            label='From',
+            value=None,
+            min_value=datetime.date(2010, 1, 1),
+            max_value=datetime.date.today(),
+            help='Start of the date range (leave blank to default to 1 year ago).',
+            format='YYYY-MM-DD',
+        )
+    with col2:
+        date_to = st.date_input(
+            label='To',
+            value=None,
+            min_value=datetime.date(2010, 1, 1),
+            max_value=datetime.date.today(),
+            help='End of the date range (leave blank to default to today).',
+            format='YYYY-MM-DD',
+        )
     submitted = st.form_submit_button('Analyze Sentiment', use_container_width=True)
 
 # ── Run analysis ──────────────────────────────────────────────────────────
@@ -427,6 +448,8 @@ if submitted:
     brand_hint    = brand_hint.strip()
     if not brand_name:
         st.warning('Please enter a brand name before clicking Analyze.')
+    elif date_from and date_to and date_from > date_to:
+        st.warning('The "From" date must be before or equal to the "To" date.')
     else:
         query_display = brand_name
         log_lines = []
@@ -450,7 +473,7 @@ if submitted:
 
             analyzer.set_log_callback(progress_aware_log)
             try:
-                results = analyzer.run_analysis(brand_name, brand_hint)
+                results = analyzer.run_analysis(brand_name, brand_hint, date_from=date_from if date_from else None, date_to=date_to if date_to else None)
                 progress_bar.progress(100)
                 status.update(
                     label=f'Done analyzing \'{query_display}\'',
