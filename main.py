@@ -37,15 +37,64 @@ def _log(msg):
 
 
 _STOP_WORDS = {
+    # Articles, conjunctions, prepositions
     "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-    "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
-    "being", "have", "has", "had", "do", "does", "did", "will", "would",
-    "could", "should", "may", "might", "shall", "can", "not", "no", "nor",
-    "so", "yet", "both", "either", "neither", "this", "that", "these",
-    "those", "it", "its", "i", "me", "my", "we", "our", "you", "your",
-    "he", "she", "they", "them", "their", "what", "which", "who", "when",
-    "where", "why", "how", "all", "more", "also", "just", "get", "got",
-    "s", "t", "re", "ve", "ll", "d", "m",
+    "of", "with", "by", "from", "into", "onto", "upon", "about", "above",
+    "below", "between", "through", "during", "before", "after", "since",
+    "until", "unless", "although", "because", "though", "while", "where",
+    # Auxiliary / modal verbs
+    "is", "are", "was", "were", "be", "been", "being", "have", "has", "had",
+    "do", "does", "did", "will", "would", "could", "should", "may", "might",
+    "shall", "can", "cannot", "need", "dare", "used",
+    # Negation / conjunctions
+    "not", "no", "nor", "so", "yet", "both", "either", "neither",
+    # Demonstratives / pronouns
+    "this", "that", "these", "those", "it", "its", "itself",
+    "i", "me", "my", "mine", "myself",
+    "we", "us", "our", "ours", "ourselves",
+    "you", "your", "yours", "yourself",
+    "he", "him", "his", "himself",
+    "she", "her", "hers", "herself",
+    "they", "them", "their", "theirs", "themselves",
+    # Question words
+    "what", "which", "who", "whom", "whose", "when", "where", "why", "how",
+    # Quantifiers / determiners
+    "all", "any", "each", "every", "some", "none", "few", "many", "much",
+    "more", "most", "less", "least", "other", "another", "same", "such",
+    "own", "only", "one", "two", "three", "first", "last", "next",
+    # Common adverbs / fillers
+    "also", "just", "very", "really", "quite", "already", "still", "even",
+    "never", "always", "often", "sometimes", "ever", "now", "then", "here",
+    "there", "too", "well", "back", "out", "up", "down", "again", "away",
+    "around", "always", "perhaps", "probably", "maybe", "actually",
+    # Common verbs that give no insight
+    "get", "got", "getting", "go", "going", "gone", "went", "come", "came",
+    "coming", "make", "made", "making", "take", "took", "taken", "taking",
+    "see", "saw", "seen", "say", "said", "says", "know", "knew", "think",
+    "thought", "look", "looks", "looked", "want", "wanted", "need", "needed",
+    "use", "used", "using", "give", "gave", "given", "keep", "kept",
+    "let", "lets", "put", "set", "try", "tried", "ask", "asked", "told",
+    "told", "show", "showed", "feel", "felt", "find", "found", "buy", "bought",
+    "like", "liked", "love", "loved", "hate", "hated",
+    # URL / web fragments
+    "http", "https", "www", "com", "org", "net", "co", "ly", "bit",
+    "url", "link", "via",
+    # Social media noise
+    "rt", "dm", "lol", "omg", "imo", "tbh", "aka", "irl",
+    # Generic filler / low-signal words
+    "people", "person", "thing", "things", "time", "times", "day", "days",
+    "year", "years", "week", "way", "ways", "place", "places", "world",
+    "new", "good", "bad", "great", "big", "little", "old", "high", "low",
+    "right", "left", "long", "small", "large", "real", "true", "false",
+    "sure", "able", "else", "going",
+    # Generic food/restaurant/business terms (too broad to be useful)
+    "restaurant", "restaurants", "food", "service", "store", "shop",
+    "customer", "customers", "order", "ordered", "ordering",
+    "menu", "price", "prices", "location", "locations",
+    # Contractions / apostrophe fragments
+    "s", "t", "re", "ve", "ll", "d", "m", "n",
+    # Numeric strings / single chars
+    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
 }
 
 
@@ -68,16 +117,35 @@ def _is_english(text):
     return ratio < 0.3  # >70% ASCII → likely English
 
 
-def extract_top_terms(posts, sentiment, brand, n=3):
-    """Return top-n words from posts of a given sentiment."""
+def extract_top_terms(posts, sentiment, brand, n=5):
+    """Return top-n meaningful words from posts of a given sentiment.
+
+    Improvements over v1:
+    - Strips URLs before tokenising so fragments like 'https', 'com' don't appear
+    - Expands stop-word list to cover generic fillers
+    - Filters out the brand name and its slug variants (e.g. 'wendy' for 'Wendy\'s')
+    - Requires minimum word length > 3 (was > 2)
+    - Returns top-5 by default (was 3) so callers get richer context
+    """
     words = []
-    brand_lower = brand.lower().split()
+    # Build brand filter: full name words + slug (lowercase, letters only)
+    brand_lower = set(brand.lower().split())
+    brand_slug = re.sub(r"[^a-z]", "", brand.lower())
+    if brand_slug:
+        brand_lower.add(brand_slug)
     for post in posts:
         if post.get('sentiment') == sentiment:
             text = post.get('content', '')
-            tokens = re.findall(r"[a-z']+", text.lower())
+            # Remove URLs first so fragments don't pollute token list
+            text = re.sub(r'https?://\S+|www\.\S+', '', text, flags=re.IGNORECASE)
+            tokens = re.findall(r"[a-z]+", text.lower())
             for w in tokens:
-                if w not in _STOP_WORDS and w not in brand_lower and len(w) > 2:
+                if (
+                    len(w) > 3
+                    and w not in _STOP_WORDS
+                    and w not in brand_lower
+                    and not w.isdigit()
+                ):
                     words.append(w)
     if not words:
         return []
