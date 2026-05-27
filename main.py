@@ -84,101 +84,7 @@ def extract_top_terms(posts, sentiment, brand, n=3):
     return [word for word, _ in Counter(words).most_common(n)]
 
 
-
-
-def _linkedin_date_param(date_from, date_to):
-    """Return the LinkedIn datePosted URL parameter based on the requested date range."""
-    today = datetime.date.today()
-    from_date = date_from or (today - datetime.timedelta(days=365))
-    days = (today - from_date).days
-    if days <= 1:
-        return '&datePosted=past-24h'
-    elif days <= 7:
-        return '&datePosted=past-week'
-    elif days <= 31:
-        return '&datePosted=past-month'
-    else:
-        return '&datePosted=past-year'
-
-
-def _reddit_time_filter(date_from, date_to):
-    """Return the Reddit timeFilter preset closest to the requested date range."""
-    today = datetime.date.today()
-    from_date = date_from or (today - datetime.timedelta(days=365))
-    days = (today - from_date).days
-    if days <= 1:
-        return 'day'
-    elif days <= 7:
-        return 'week'
-    elif days <= 31:
-        return 'month'
-    elif days <= 365:
-        return 'year'
-    else:
-        return 'all'
-
-def _parse_post_date(date_str):
-    """Parse a post date string or unix timestamp into a datetime.date, or return None.
-
-    Handles: unix timestamps, ISO-8601 strings, Twitter date strings.
-    """
-    if date_str is None:
-        return None
-    # Unix timestamp (int or float)
-    if isinstance(date_str, (int, float)):
-        try:
-            return datetime.datetime.utcfromtimestamp(float(date_str)).date()
-        except (OSError, ValueError, OverflowError):
-            return None
-    date_str = str(date_str).strip()
-    if not date_str:
-        return None
-    # ISO format: try YYYY-MM-DD anywhere in the string
-    m = re.search(r'(\d{4})-(\d{2})-(\d{2})', date_str)
-    if m:
-        try:
-            return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-        except ValueError:
-            pass
-    # Twitter format: 'Mon Jan 15 14:30:00 +0000 2024'
-    try:
-        return datetime.datetime.strptime(date_str, '%a %b %d %H:%M:%S %z %Y').date()
-    except (ValueError, TypeError):
-        pass
-    return None
-
-
-def _filter_posts_by_date(posts, date_from, date_to):
-    """Drop posts whose date falls outside [date_from, date_to].
-
-    Posts with no parseable date are kept (fail-open) so no data is
-    silently lost when a platform returns an unexpected date format.
-    """
-    if not date_from and not date_to:
-        return posts
-    kept = []
-    dropped = 0
-    for post in posts:
-        raw = post.get('date')
-        d = _parse_post_date(raw)
-        if d is None:
-            # Unknown date: keep it (fail-open)
-            kept.append(post)
-            continue
-        if date_from and d < date_from:
-            dropped += 1
-            continue
-        if date_to and d > date_to:
-            dropped += 1
-            continue
-        kept.append(post)
-    if dropped:
-        _log(f'Date filter: dropped {dropped} out-of-range posts; {len(kept)} remain')
-    return kept
-
-
-
-def fetch_tiktok(brand, date_from=None, date_to=None):
+def fetch_tiktok(brand):
     global source_warnings
     if not config.ENABLE_TIKTOK:
         return []
@@ -190,8 +96,8 @@ def fetch_tiktok(brand, date_from=None, date_to=None):
             "keywords": [query],
             "maxItems": config.APIFY_MAX_RESULTS,
             "sortType": "RELEVANCE",
-                        "dateFrom": (date_from or (datetime.date.today() - datetime.timedelta(days=365))).strftime("%Y-%m-%d"),
-                        "dateTo": (date_to or datetime.date.today()).strftime("%Y-%m-%d"),
+                        "dateFrom": (datetime.date.today() - datetime.timedelta(days=365)).strftime("%Y-%m-%d"),
+                        "dateTo": datetime.date.today().strftime("%Y-%m-%d"),
         }
         _log(f"TikTok: starting run for '{query}'")
         run = client.actor(config.APIFY_TIKTOK_ACTOR).start(
@@ -208,7 +114,6 @@ def fetch_tiktok(brand, date_from=None, date_to=None):
                 'platform': 'TikTok',
                 'author': (item.get('channel') or {}).get('username') or item.get('authorMeta', {}).get('name') or 'unknown',
                 'content': text[:500],
-                'date': item.get('createTimeISO') or (str(datetime.datetime.utcfromtimestamp(int(item['createTime'])).date()) if item.get('createTime') else None) or (str(datetime.datetime.utcfromtimestamp(int(str(item.get('id', '') or '')) >> 32).date()) if (str(item.get('id', '') or '').isdigit()) else None),
                 'url': (
                     item.get('postPage')
                     or item.get('webVideoUrl')
@@ -249,7 +154,7 @@ def _linkedin_author(item):
     return item.get('authorProfileId') or item.get('name') or 'Unknown'
 
 
-def fetch_linkedin(brand, date_from=None, date_to=None):
+def fetch_linkedin(brand):
     global source_warnings
     if not config.ENABLE_LINKEDIN:
         return []
@@ -260,13 +165,13 @@ def fetch_linkedin(brand, date_from=None, date_to=None):
         search_url = (
             'https://www.linkedin.com/search/results/content/?keywords='
             + quote_plus(query)
-            + _linkedin_date_param(date_from, date_to)
+            + '&datePosted=past-year'
         )
         run_input = {
             "urls": [search_url],
             "count": config.APIFY_MAX_RESULTS,
-                        "startDate": (date_from or (datetime.date.today() - datetime.timedelta(days=365))).strftime("%Y-%m-%d"),
-                        "endDate": (date_to or datetime.date.today()).strftime("%Y-%m-%d"),
+                        "startDate": (datetime.date.today() - datetime.timedelta(days=365)).strftime("%Y-%m-%d"),
+                        "endDate": datetime.date.today().strftime("%Y-%m-%d"),
         }
         _log(f"LinkedIn: starting run for '{query}'")
         run = client.actor(config.APIFY_LINKEDIN_ACTOR).start(
@@ -290,7 +195,6 @@ def fetch_linkedin(brand, date_from=None, date_to=None):
                 'platform': 'LinkedIn',
                 'author': _linkedin_author(item),
                 'content': text[:500],
-                'date': item.get('date') or item.get('postDate') or item.get('publishedAt') or item.get('postedDate') or None,
                 'url': (
                     item.get('postUrl')
                     or item.get('url')
@@ -307,7 +211,7 @@ def fetch_linkedin(brand, date_from=None, date_to=None):
     return results
 
 
-def fetch_twitter(brand, date_from=None, date_to=None):
+def fetch_twitter(brand):
     """
     Fetch tweets via Apify (kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest).
     ntscraper was removed because public Nitter instances are unreliable.
@@ -324,8 +228,7 @@ def fetch_twitter(brand, date_from=None, date_to=None):
             "maxItems": config.APIFY_MAX_RESULTS,
             "queryType": "Latest",
             "lang": "en",
-            "since": (date_from or (datetime.date.today() - datetime.timedelta(days=365))).strftime('%Y-%m-%d'),
-            "until": (date_to or datetime.date.today()).strftime('%Y-%m-%d')
+            "since":(datetime.date.today() - datetime.timedelta(days=365)).strftime('%Y-%m-%d')
         }
         _log(f"Twitter/X: starting Apify run for '{query}'")
         run = client.actor(config.APIFY_TWITTER_ACTOR).start(
@@ -349,7 +252,6 @@ def fetch_twitter(brand, date_from=None, date_to=None):
                 'platform': 'Twitter/X',
                 'author': item.get('author', {}).get('userName') or item.get('username') or 'unknown',
                 'content': text_val[:500],
-                'date': item.get('createdAt') or item.get('date') or (str(datetime.datetime.utcfromtimestamp(int(item['timestamp_ms']) / 1000).date()) if item.get('timestamp_ms') else None) or None,
                 'url': (
                     item.get('url')
                     or item.get('tweetUrl')
@@ -367,7 +269,7 @@ def fetch_twitter(brand, date_from=None, date_to=None):
         _log(f'Twitter/X: ERROR {e}')
     _log(f'Twitter/X: collected {len(results)} items')
     return results
-def fetch_reddit(brand, date_from=None, date_to=None):
+def fetch_reddit(brand):
     global source_warnings
     if not config.ENABLE_REDDIT:
         return []
@@ -379,7 +281,7 @@ def fetch_reddit(brand, date_from=None, date_to=None):
             "searchQuery": query,
             "maxPostsPerSource": config.APIFY_MAX_RESULTS,
             "sort": "relevance",
-            "timeFilter": _reddit_time_filter(date_from, date_to),
+            "timeFilter": "year",
             "includeComments": False,
         }
         _log(f"Reddit: starting run for '{query}'")
@@ -399,7 +301,6 @@ def fetch_reddit(brand, date_from=None, date_to=None):
                 'platform': 'Reddit',
                 'author': item.get('author') or 'unknown',
                 'content': text[:500],
-                'date': item.get('createdAt') or item.get('date') or (str(datetime.datetime.utcfromtimestamp(int(item['createdUtc'])).date()) if item.get('createdUtc') else None) or (str(datetime.datetime.utcfromtimestamp(int(item['created'])).date()) if item.get('created') else None) or None,
                 'url': (
                     (
                         'https://www.reddit.com' + item.get('permalink')
@@ -525,25 +426,19 @@ def analyze_sentiment(posts):
     return results
 
 
-def run_analysis(brand, brand_hint='', date_from=None, date_to=None):
+def run_analysis(brand, brand_hint=''):
     global source_warnings
     source_warnings = []
     all_posts = []
     _log('Step 1/5: TikTok')
-    all_posts.extend(fetch_tiktok(brand, date_from=date_from, date_to=date_to))
+    all_posts.extend(fetch_tiktok(brand))
     _log('Step 2/5: LinkedIn')
-    all_posts.extend(fetch_linkedin(brand, date_from=date_from, date_to=date_to))
+    all_posts.extend(fetch_linkedin(brand))
     _log('Step 3/5: Twitter/X')
-    all_posts.extend(fetch_twitter(brand, date_from=date_from, date_to=date_to))
+    all_posts.extend(fetch_twitter(brand))
     _log('Step 4/5: Reddit')
-    all_posts.extend(fetch_reddit(brand, date_from=date_from, date_to=date_to))
+    all_posts.extend(fetch_reddit(brand))
     _log(f'Fetching complete: {len(all_posts)} posts')
-    # --- Date range filter: drop posts outside [date_from, date_to] ---
-    _before_date = len(all_posts)
-    all_posts = _filter_posts_by_date(all_posts, date_from, date_to)
-    _date_dropped = _before_date - len(all_posts)
-    if _date_dropped:
-        _log(f'Date filter: removed {_date_dropped} out-of-range posts; {len(all_posts)} remain')
     # --- English / spam filter ---
     _before_lang = len(all_posts)
     all_posts = [p for p in all_posts if _is_english(p.get('content', ''))]
