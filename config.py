@@ -24,10 +24,10 @@ APIFY_YOUTUBE_ACTOR    = "apidojo/youtube-scraper"
 # -- Source toggles ---------------------------------------------------------
 ENABLE_TIKTOK     = True
 ENABLE_LINKEDIN   = True
-ENABLE_INSTAGRAM  = False  # requires Apify paid plan (Free plan = 10-item demo mode only)
+ENABLE_INSTAGRAM  = True  # requires Apify paid plan (Free plan = 10-item demo mode only)
 ENABLE_TWITTER    = True
 ENABLE_REDDIT     = True
-ENABLE_YOUTUBE    = False  # requires Apify paid plan (Free plan = 10-item demo mode only)
+ENABLE_YOUTUBE    = True  # requires Apify paid plan (Free plan = 10-item demo mode only)
 
 
 # -- Scraping limits (per source, per run) ----------------------------------
