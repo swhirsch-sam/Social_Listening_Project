@@ -469,9 +469,9 @@ if submitted:
                 elif 'Step 5/7' in line:
                     progress_bar.progress(78)
 
-            analyzer.set_log_callback(progress_aware_log)
+            analyze.set_log_callback(progress_aware_log)
             try:
-                results = analyzer.run_analysis(brand_name, brand_hint, scrape_window=scrape_window_key)
+                results = analyze.run_analysis(brand_name, brand_hint, scrape_window=scrape_window_key)
                 progress_bar.progress(100)
                 status.update(
                     label=f'Done analyzing \'{query_display}\'',
