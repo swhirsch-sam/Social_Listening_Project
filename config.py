@@ -13,30 +13,36 @@ APIFY_API_KEY     = os.environ.get("APIFY_API_KEY", "")
 
 
 # -- Apify actor IDs --------------------------------------------------------
-APIFY_TIKTOK_ACTOR    = "apidojo/tiktok-scraper"
-APIFY_LINKEDIN_ACTOR  = "harvestapi/linkedin-post-search"
-APIFY_INSTAGRAM_ACTOR = "apify/instagram-scraper"  # disabled on Free plan (demo mode only)
-APIFY_TWITTER_ACTOR   = "kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest"
-APIFY_REDDIT_ACTOR    = "automation-lab/reddit-scraper"
+APIFY_TIKTOK_ACTOR     = "apidojo/tiktok-scraper"
+APIFY_LINKEDIN_ACTOR   = "harvestapi/linkedin-post-search"
+APIFY_INSTAGRAM_ACTOR  = "apidojo/instagram-scraper"
+APIFY_TWITTER_ACTOR    = "kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest"
+APIFY_REDDIT_ACTOR     = "automation-lab/reddit-scraper"
+APIFY_YOUTUBE_ACTOR    = "apidojo/youtube-scraper"
 
 
 # -- Source toggles ---------------------------------------------------------
-ENABLE_TIKTOK    = True
-ENABLE_LINKEDIN  = True
-ENABLE_INSTAGRAM = False  # Apify Free plan limits Instagram actor to 10-item demo mode
-ENABLE_TWITTER   = True
-ENABLE_REDDIT    = True
+ENABLE_TIKTOK     = True
+ENABLE_LINKEDIN   = True
+ENABLE_INSTAGRAM  = False  # requires Apify paid plan (Free plan = 10-item demo mode only)
+ENABLE_TWITTER    = True
+ENABLE_REDDIT     = True
+ENABLE_YOUTUBE    = False  # requires Apify paid plan (Free plan = 10-item demo mode only)
 
 
 # -- Scraping limits (per source, per run) ----------------------------------
 APIFY_MAX_RESULTS = 150        # max items per Apify actor run
 
 
+# -- Time-range window for scrapers -----------------------------------------
+# Options: "week" | "6months" | "year"
+SCRAPE_WINDOW = "year"
+
+
 # -- Claude model & rate-limit ----------------------------------------------
 CLAUDE_MODEL          = "claude-haiku-4-5"
-CLAUDE_DELAY_SECONDS  = 0.5    # seconds to pause between Claude API calls
+CLAUDE_DELAY_SECONDS  = 0.5   # seconds to pause between Claude API calls
+
 
 # -- LLM brand-relevance filter ---------------------------------------------
-ENABLE_BRAND_FILTER = True     # set False to skip the brand-relevance check
-
-
+ENABLE_BRAND_FILTER = True    # set False to skip the brand-relevance check
