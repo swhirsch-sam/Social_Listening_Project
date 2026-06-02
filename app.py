@@ -5,7 +5,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import main as analyzer
+import main as analyze
 
 st.set_page_config(
     page_title="PulseCheck — Brand Sentiment",
@@ -421,16 +421,19 @@ with st.form('brand_form'):
     )
     scrape_window = st.radio(
         label='Post date range',
-        options=['In past week', 'In past 6 months', 'In past year'],
-        index=2,
+                    options=['In past day', 'In past week', 'In past month', 'In past 3 months', 'In past 6 months', 'In past year'],
+                    index=5,
         horizontal=True,
         help='How far back to search for posts across all platforms.',
     )
     # Map display labels to internal keys used by the scrapers
     _window_map = {
-        'In past week':     'week',
-        'In past 6 months': '6months',
-        'In past year':     'year',
+                    'In past day':      'day',
+                    'In past week':     'week',
+                    'In past month':    'month',
+                    'In past 3 months': '3months',
+                    'In past 6 months': '6months',
+                    'In past year':     'year',
     }
     scrape_window_key = _window_map.get(scrape_window, 'year')
     submitted = st.form_submit_button('Analyze Sentiment', use_container_width=True)
