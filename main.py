@@ -154,7 +154,7 @@ def extract_top_terms(posts, sentiment, brand, n=5):
 
 def _scrape_window_since(scrape_window):
     """Return a YYYY-MM-DD string for the start of the requested scrape window."""
-        days_map = {'day': 1, 'week': 7, 'month': 30, '3months': 91, '6months': 182, 'year': 365}
+    days_map = {'day': 1, 'week': 7, 'month': 30, '3months': 91, '6months': 182, 'year': 365}
     days = days_map.get(scrape_window, 365)
     return (datetime.date.today() - datetime.timedelta(days=days)).strftime('%Y-%m-%d')
 
@@ -635,7 +635,7 @@ def run_analysis(brand, brand_hint='', scrape_window=None):
     _log('Step 6/7: Instagram')
     all_posts.extend(fetch_instagram(brand, window))
     _log(f'Fetching complete: {len(all_posts)} posts')
-        # --- English / spam filter ---
+    # --- English / spam filter ---
     _before_lang = len(all_posts)
     all_posts = [p for p in all_posts if _is_english(p.get('content', ''))]
     _lang_dropped = _before_lang - len(all_posts)
