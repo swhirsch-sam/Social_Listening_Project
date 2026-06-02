@@ -419,6 +419,20 @@ with st.form('brand_form'):
             'unrelated posts (e.g. people or places with the same name).'
         ),
     )
+    scrape_window = st.radio(
+        label='Post date range',
+        options=['In past week', 'In past 6 months', 'In past year'],
+        index=2,
+        horizontal=True,
+        help='How far back to search for posts across all platforms.',
+    )
+    # Map display labels to internal keys used by the scrapers
+    _window_map = {
+        'In past week':     'week',
+        'In past 6 months': '6months',
+        'In past year':     'year',
+    }
+    scrape_window_key = _window_map.get(scrape_window, 'year')
     submitted = st.form_submit_button('Analyze Sentiment', use_container_width=True)
 
 # ── Run analysis ──────────────────────────────────────────────────────────
@@ -437,20 +451,24 @@ if submitted:
 
             def progress_aware_log(line):
                 _ui_log(line)
-                if 'Step 1/5' in line:
+                if 'Step 1/7' in line:
                     progress_bar.progress(10)
-                elif 'Step 2/5' in line:
+                elif 'Step 2/7' in line:
                     progress_bar.progress(25)
-                elif 'Step 3/5' in line:
+                elif 'Step 3/7' in line:
                     progress_bar.progress(45)
-                elif 'Step 4/5' in line:
+                elif 'Step 4/7' in line:
                     progress_bar.progress(60)
-                elif 'Step 5/5' in line:
+                elif 'Step 5/7' in line:
+                    progress_bar.progress(64)
+                elif 'Step 6/7' in line:
+                    progress_bar.progress(78)
+                elif 'Step 5/7' in line:
                     progress_bar.progress(78)
 
             analyzer.set_log_callback(progress_aware_log)
             try:
-                results = analyzer.run_analysis(brand_name, brand_hint)
+                results = analyzer.run_analysis(brand_name, brand_hint, scrape_window=scrape_window_key)
                 progress_bar.progress(100)
                 status.update(
                     label=f'Done analyzing \'{query_display}\'',
