@@ -152,7 +152,14 @@ def extract_top_terms(posts, sentiment, brand, n=5):
     return [word for word, _ in Counter(words).most_common(n)]
 
 
-def fetch_tiktok(brand):
+def _scrape_window_since(scrape_window):
+    """Return a YYYY-MM-DD string for the start of the requested scrape window."""
+    days_map = {'week': 7, '6months': 182, 'year': 365}
+    days = days_map.get(scrape_window, 365)
+    return (datetime.date.today() - datetime.timedelta(days=days)).strftime('%Y-%m-%d')
+
+
+def fetch_tiktok(brand, scrape_window='year'):
     global source_warnings
     if not config.ENABLE_TIKTOK:
         return []
@@ -164,8 +171,8 @@ def fetch_tiktok(brand):
             "keywords": [query],
             "maxItems": config.APIFY_MAX_RESULTS,
             "sortType": "RELEVANCE",
-                        "dateFrom": (datetime.date.today() - datetime.timedelta(days=365)).strftime("%Y-%m-%d"),
-                        "dateTo": datetime.date.today().strftime("%Y-%m-%d"),
+                        "dateFrom": _scrape_window_since(scrape_window),
+                        "dateTo":   datetime.date.today().strftime("%Y-%m-%d"),
         }
         _log(f"TikTok: starting run for '{query}'")
         run = client.actor(config.APIFY_TIKTOK_ACTOR).start(
@@ -222,7 +229,7 @@ def _linkedin_author(item):
     return item.get('authorProfileId') or item.get('name') or 'Unknown'
 
 
-def fetch_linkedin(brand):
+def fetch_linkedin(brand, scrape_window='year'):
     global source_warnings
     if not config.ENABLE_LINKEDIN:
         return []
@@ -233,7 +240,7 @@ def fetch_linkedin(brand):
         run_input = {
             "searchQueries": [query],
             "maxPosts": config.APIFY_MAX_RESULTS,
-            "postedLimit": "year",
+            "postedLimit": {"week": "week", "6months": "6months", "year": "year"}.get(scrape_window, "year"),
             "sortBy": "relevance",
             "scrapeReactions": False,
             "scrapeComments": False,
@@ -274,7 +281,7 @@ def fetch_linkedin(brand):
         _log(f'LinkedIn: ERROR {e}')
     _log(f'LinkedIn: collected {len(results)} items')
     return results
-def fetch_twitter(brand):
+def fetch_twitter(brand, scrape_window='year'):
     """
     Fetch tweets via Apify (kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest).
     ntscraper was removed because public Nitter instances are unreliable.
@@ -291,7 +298,7 @@ def fetch_twitter(brand):
             "maxItems": config.APIFY_MAX_RESULTS,
             "queryType": "Latest",
             "lang": "en",
-            "since":(datetime.date.today() - datetime.timedelta(days=365)).strftime('%Y-%m-%d')
+            "since": _scrape_window_since(scrape_window),
         }
         _log(f"Twitter/X: starting Apify run for '{query}'")
         run = client.actor(config.APIFY_TWITTER_ACTOR).start(
@@ -332,7 +339,7 @@ def fetch_twitter(brand):
         _log(f'Twitter/X: ERROR {e}')
     _log(f'Twitter/X: collected {len(results)} items')
     return results
-def fetch_reddit(brand):
+def fetch_reddit(brand, scrape_window='year'):
     global source_warnings
     if not config.ENABLE_REDDIT:
         return []
@@ -344,7 +351,7 @@ def fetch_reddit(brand):
             "searchQuery": query,
             "maxPostsPerSource": config.APIFY_MAX_RESULTS,
             "sort": "relevance",
-            "timeFilter": "year",
+            "timeFilter": "week" if scrape_window == "week" else "year",
             "includeComments": False,
         }
         _log(f"Reddit: starting run for '{query}'")
@@ -380,6 +387,107 @@ def fetch_reddit(brand):
     _log(f'Reddit: collected {len(results)} items')
     return results
 
+
+
+def fetch_youtube(brand, scrape_window='year'):
+    """Fetch YouTube videos mentioning the brand via apidojo/youtube-scraper."""
+    global source_warnings
+    if not config.ENABLE_YOUTUBE:
+        return []
+    client = ApifyClient(config.APIFY_API_KEY)
+    results = []
+    # Map scrape_window to uploadDate values supported by the actor
+    upload_date_map = {
+        'week':    'week',
+        '6months': 'month',   # actor has no 6-month option; round to month
+        'year':    'year',
+    }
+    upload_date = upload_date_map.get(scrape_window, 'year')
+    try:
+        run_input = {
+            "keywords":   [brand],
+            "maxItems":   config.APIFY_MAX_RESULTS,
+            "uploadDate": upload_date,
+            "sort":       "r",   # relevance
+            "gl":         "us",
+            "hl":         "en",
+            "scrapeComments": False,
+        }
+        _log(f"YouTube: starting run for '{brand}'")
+        run = client.actor(config.APIFY_YOUTUBE_ACTOR).start(
+            run_input=run_input,
+            max_items=config.APIFY_MAX_RESULTS,
+        )
+        client.run(run['id']).wait_for_finish()
+        _log(f'YouTube: run finished')
+        for item in client.dataset(run['defaultDatasetId']).iterate_items():
+            text = (
+                item.get('description') or
+                item.get('title') or
+                item.get('text') or ''
+            ).strip()
+            if not text or len(text) < 15:
+                continue
+            results.append({
+                'platform': 'YouTube',
+                'author':   (item.get('channelName') or item.get('channel', {}).get('name') or '').strip(),
+                'content':  text[:500],
+                'url':      item.get('url') or item.get('videoUrl') or '',
+            })
+    except Exception as e:
+        source_warnings.append(f'YouTube: {e}')
+        _log(f'YouTube: ERROR {e}')
+    _log(f'YouTube: collected {len(results)} items')
+    return results
+
+
+def fetch_instagram(brand, scrape_window='year'):
+    """Fetch Instagram posts mentioning the brand via apidojo/instagram-scraper."""
+    global source_warnings
+    if not config.ENABLE_INSTAGRAM:
+        return []
+    client = ApifyClient(config.APIFY_API_KEY)
+    results = []
+    # Build a hashtag search URL from the brand slug
+    brand_slug = re.sub(r'[^a-z0-9]', '', brand.lower())
+    # until = oldest date we want (actor returns posts NEWER than this)
+    window_days_map = {'week': 7, '6months': 182, 'year': 365}
+    days_back = window_days_map.get(scrape_window, 365)
+    until_date = (datetime.date.today() - datetime.timedelta(days=days_back)).strftime('%Y-%m-%d')
+    hashtag_url = f'https://www.instagram.com/explore/tags/{brand_slug}/'
+    try:
+        run_input = {
+            "startUrls": [hashtag_url],
+            "maxItems":  config.APIFY_MAX_RESULTS,
+            "until":     until_date,
+        }
+        _log(f"Instagram: starting run for '#{brand_slug}'")
+        run = client.actor(config.APIFY_INSTAGRAM_ACTOR).start(
+            run_input=run_input,
+            max_items=config.APIFY_MAX_RESULTS,
+        )
+        client.run(run['id']).wait_for_finish()
+        _log(f'Instagram: run finished')
+        for item in client.dataset(run['defaultDatasetId']).iterate_items():
+            text = (
+                item.get('caption') or
+                item.get('text') or
+                item.get('description') or ''
+            ).strip()
+            if not text or len(text) < 15:
+                continue
+            owner = item.get('ownerUsername') or item.get('username') or ''
+            results.append({
+                'platform': 'Instagram',
+                'author':   owner,
+                'content':  text[:500],
+                'url':      item.get('url') or item.get('shortCode') and f"https://www.instagram.com/p/{item['shortCode']}/" or '',
+            })
+    except Exception as e:
+        source_warnings.append(f'Instagram: {e}')
+        _log(f'Instagram: ERROR {e}')
+    _log(f'Instagram: collected {len(results)} items')
+    return results
 
 
 def filter_brand_relevant(posts, brand, brand_hint='', batch_size=50):
@@ -508,20 +616,26 @@ def analyze_sentiment(posts):
     return results
 
 
-def run_analysis(brand, brand_hint=''):
+def run_analysis(brand, brand_hint='', scrape_window=None):
     global source_warnings
     source_warnings = []
     all_posts = []
-    _log('Step 1/5: TikTok')
-    all_posts.extend(fetch_tiktok(brand))
-    _log('Step 2/5: LinkedIn')
-    all_posts.extend(fetch_linkedin(brand))
-    _log('Step 3/5: Twitter/X')
-    all_posts.extend(fetch_twitter(brand))
-    _log('Step 4/5: Reddit')
-    all_posts.extend(fetch_reddit(brand))
+    window = scrape_window or config.SCRAPE_WINDOW
+    _log(f'Scrape window: {window}')
+    _log('Step 1/7: TikTok')
+    all_posts.extend(fetch_tiktok(brand, window))
+    _log('Step 2/7: LinkedIn')
+    all_posts.extend(fetch_linkedin(brand, window))
+    _log('Step 3/7: Twitter/X')
+    all_posts.extend(fetch_twitter(brand, window))
+    _log('Step 4/7: Reddit')
+    all_posts.extend(fetch_reddit(brand, window))
+    _log('Step 5/7: YouTube')
+    all_posts.extend(fetch_youtube(brand, window))
+    _log('Step 6/7: Instagram')
+    all_posts.extend(fetch_instagram(brand, window))
     _log(f'Fetching complete: {len(all_posts)} posts')
-    # --- English / spam filter ---
+        # --- English / spam filter ---
     _before_lang = len(all_posts)
     all_posts = [p for p in all_posts if _is_english(p.get('content', ''))]
     _lang_dropped = _before_lang - len(all_posts)
