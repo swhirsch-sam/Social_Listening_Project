@@ -5,7 +5,7 @@ Social Listening - Brand Sentiment Analyzer
 
 import time
 import datetime
-import json
+import jso
 import re
 import anthropic
 from collections import Counter
@@ -154,7 +154,7 @@ def extract_top_terms(posts, sentiment, brand, n=5):
 
 def _scrape_window_since(scrape_window):
     """Return a YYYY-MM-DD string for the start of the requested scrape window."""
-    days_map = {'week': 7, '6months': 182, 'year': 365}
+        days_map = {'day': 1, 'week': 7, 'month': 30, '3months': 91, '6months': 182, 'year': 365}
     days = days_map.get(scrape_window, 365)
     return (datetime.date.today() - datetime.timedelta(days=days)).strftime('%Y-%m-%d')
 
