@@ -35,7 +35,7 @@ APIFY_MAX_RESULTS = 150        # max items per Apify actor run
 
 
 # -- Time-range window for scrapers -----------------------------------------
-# Options: "week" | "6months" | "year"
+# Options: "day" | "week" | "month" | "3months" | "6months" | "year"
 SCRAPE_WINDOW = "year"
 
 
