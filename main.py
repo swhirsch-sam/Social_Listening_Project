@@ -237,9 +237,9 @@ def fetch_linkedin(brand):
         )
         run_input = {
             "urls": [search_url],
-            "count": config.APIFY_MAX_RESULTS,
-                        "startDate": (datetime.date.today() - datetime.timedelta(days=365)).strftime("%Y-%m-%d"),
-                        "endDate": datetime.date.today().strftime("%Y-%m-%d"),
+            "limitPerSource": config.APIFY_MAX_RESULTS,
+            "scrapeUntil": (datetime.date.today() - datetime.timedelta(days=365)).strftime("%Y-%m-%d"),
+            "deepScrape": False,
         }
         _log(f"LinkedIn: starting run for '{query}'")
         run = client.actor(config.APIFY_LINKEDIN_ACTOR).start(
@@ -390,8 +390,10 @@ def fetch_reddit(brand):
 def filter_brand_relevant(posts, brand, brand_hint='', batch_size=50):
     """Use Claude to filter out posts that are not about the brand/company.
 
-    Posts are evaluated in batches. If the API call fails for any batch,
-    that batch is kept (fail-open) so no posts are silently dropped.
+    Posts are evaluated in batches. If a batch hits a content-policy 400,
+    it falls back to per-post filtering so only the offending post(s) are
+    dropped rather than keeping an unfiltered chunk. All other errors are
+    fail-open (chunk kept) so no posts are silently lost.
     """
     if not posts:
         return posts
@@ -407,14 +409,13 @@ def filter_brand_relevant(posts, brand, brand_hint='', batch_size=50):
             for j, p in enumerate(chunk)
         )
         prompt = (
-            f'You are a social media content filter. Your job is to decide whether each post '
-            f'is about the brand or company named "{brand}"{hint_clause}.\n\n'
+            f'You are a social media content moderator performing brand-relevance classification.\n\n'
+            f'For each numbered post below, reply YES if it is clearly about the brand/company '
+            f'named "{brand}"{hint_clause}, or NO if it is not or if you are unsure.\n\n'
             f'Important: "{brand}" may refer to multiple things (a company, a person, a place, '
             f'a common word, etc.). Only keep posts where the context makes it clear the author '
             f'is talking about a commercial brand or company -- not a celebrity, athlete, '
             f'fictional character, place, or unrelated use of the word.\n\n'
-            f'For each numbered post below, reply YES if it is clearly about the {brand} '
-            f'brand/company, or NO if it is not or if you are unsure.\n\n'
             f'Posts:\n{numbered}\n\n'
             f'Return ONLY a JSON array of YES/NO answers in order, e.g. ["YES","NO","YES"].\n'
             f'No explanation, just the JSON array.'
@@ -422,7 +423,8 @@ def filter_brand_relevant(posts, brand, brand_hint='', batch_size=50):
         try:
             response = client.messages.create(
                 model=config.CLAUDE_MODEL,
-                max_tokens=256,
+                max_tokens=batch_size * 6,
+                system="You are a content moderation assistant classifying social media posts for brand relevance.",
                 messages=[{'role': 'user', 'content': prompt}],
             )
             raw = response.content[0].text.strip()
@@ -434,13 +436,30 @@ def filter_brand_relevant(posts, brand, brand_hint='', batch_size=50):
             if not answers:
                 _log(f'Brand filter: no valid JSON in response for chunk, keeping chunk')
                 relevant.extend(chunk)
+        except anthropic.BadRequestError as e:
+            _log(f'Brand filter: content policy hit on batch, falling back to per-post filtering')
+            for post in chunk:
+                snippet = str(post.get('content', ''))[:300]
+                single_prompt = (
+                    f'Does this post mention the brand or company "{brand}"{hint_clause}? '
+                    f'Reply YES or NO only.\n\nPost: {snippet}'
+                )
+                try:
+                    r = client.messages.create(
+                        model=config.CLAUDE_MODEL,
+                        max_tokens=10,
+                        system="You are a content moderation assistant.",
+                        messages=[{'role': 'user', 'content': single_prompt}],
+                    )
+                    if 'YES' in r.content[0].text.upper():
+                        relevant.append(post)
+                except Exception:
+                    relevant.append(post)
         except Exception as e:
             _log(f'Brand filter error (keeping chunk): {e}')
             relevant.extend(chunk)
         time.sleep(config.CLAUDE_DELAY_SECONDS)
     return relevant
-
-
 def _validate_sentiment(s):
     """Validate and normalise a sentiment string returned by Claude."""
     if isinstance(s, str) and s.strip().lower() in ('positive', 'negative', 'neutral'):
