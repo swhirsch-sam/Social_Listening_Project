@@ -230,46 +230,43 @@ def fetch_linkedin(brand):
     results = []
     query = _search_query(brand)
     try:
-        search_url = (
-            'https://www.linkedin.com/search/results/content/?keywords='
-            + quote_plus(query)
-            + '&datePosted=past-year'
-        )
         run_input = {
-            "urls": [search_url],
-            "limitPerSource": config.APIFY_MAX_RESULTS,
-            "scrapeUntil": (datetime.date.today() - datetime.timedelta(days=365)).strftime("%Y-%m-%d"),
-            "deepScrape": False,
+            "searchQueries": [query],
+            "maxPosts": config.APIFY_MAX_RESULTS,
+            "postedLimit": "year",
+            "sortBy": "relevance",
+            "scrapeReactions": False,
+            "scrapeComments": False,
         }
         _log(f"LinkedIn: starting run for '{query}'")
         run = client.actor(config.APIFY_LINKEDIN_ACTOR).start(
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
         )
-        client.run(run.id).wait_for_finish()
+        client.run(run['id']).wait_for_finish()
         _log(f'LinkedIn: run finished')
-        for item in client.dataset(run.default_dataset_id).iterate_items():
+        for item in client.dataset(run['defaultDatasetId']).iterate_items():
             parts = [
-                item.get('title') or '',
                 item.get('text') or '',
                 item.get('content') or '',
                 item.get('description') or '',
-                item.get('subtitle') or '',
             ]
             text = ' '.join(p for p in parts if p).strip()
             if not text or len(text.strip()) < 15:
                 continue
+            author_obj = item.get('author') or {}
+            if isinstance(author_obj, dict):
+                author = (author_obj.get('name') or author_obj.get('fullName') or '').strip()
+            else:
+                author = str(author_obj).strip()
             results.append({
                 'platform': 'LinkedIn',
-                'author': _linkedin_author(item),
+                'author': author,
                 'content': text[:500],
                 'url': (
-                    item.get('postUrl')
-                    or item.get('url')
-                    or (
-                        'https://www.linkedin.com/feed/update/' + item.get('postId')
-                        if item.get('postId') else ''
-                    )
+                    item.get('url')
+                    or item.get('postUrl')
+                    or ''
                 ),
             })
     except Exception as e:
@@ -277,8 +274,6 @@ def fetch_linkedin(brand):
         _log(f'LinkedIn: ERROR {e}')
     _log(f'LinkedIn: collected {len(results)} items')
     return results
-
-
 def fetch_twitter(brand):
     """
     Fetch tweets via Apify (kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest).
