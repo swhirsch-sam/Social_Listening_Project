@@ -296,9 +296,10 @@ def fetch_twitter(brand, scrape_window='year'):
         run_input = {
             "searchTerms": [query],
             "maxItems": config.APIFY_MAX_RESULTS,
-            "queryType": "Latest",
-            "lang": "en",
-            "since": _scrape_window_since(scrape_window),
+            "queryType": "Top",
+            "lang":      "en",
+            "since":     _scrape_window_since(scrape_window),
+            "until":     datetime.date.today().strftime('%Y-%m-%d'),
         }
         _log(f"Twitter/X: starting Apify run for '{query}'")
         run = client.actor(config.APIFY_TWITTER_ACTOR).start(
@@ -317,6 +318,8 @@ def fetch_twitter(brand, scrape_window='year'):
             ]
             text_val = ' '.join(p for p in parts if p).strip()
             if not text_val or len(text_val.strip()) < 15:
+                continue
+            if not _is_english(text_val):
                 continue
             results.append({
                 'platform': 'Twitter/X',
