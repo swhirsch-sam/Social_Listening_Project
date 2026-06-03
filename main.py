@@ -423,7 +423,7 @@ def fetch_youtube(brand, scrape_window='year'):
         )
         client.run(run.id).wait_for_finish()
         _log(f'YouTube: run finished')
-                for item in client.dataset(run.default_dataset_id).iterate_items():
+        for item in client.dataset(run.default_dataset_id).iterate_items():
             text = (
                 item.get('description') or
                 item.get('title') or
@@ -471,7 +471,7 @@ def fetch_instagram(brand, scrape_window='year'):
         )
         client.run(run.id).wait_for_finish()
         _log(f'Instagram: run finished')
-                for item in client.dataset(run.default_dataset_id).iterate_items():
+        for item in client.dataset(run.default_dataset_id).iterate_items():
             text = (
                 item.get('caption') or
                 item.get('text') or
