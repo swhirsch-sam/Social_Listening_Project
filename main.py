@@ -250,9 +250,9 @@ def fetch_linkedin(brand, scrape_window='year'):
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
         )
-        client.run(run['id']).wait_for_finish()
+        client.run(run.id).wait_for_finish()
         _log(f'LinkedIn: run finished')
-        for item in client.dataset(run['defaultDatasetId']).iterate_items():
+        for item in client.dataset(run.default_dataset_id]).iterate_items():
             parts = [
                 item.get('text') or '',
                 item.get('content') or '',
@@ -398,11 +398,14 @@ def fetch_youtube(brand, scrape_window='year'):
     results = []
     # Map scrape_window to uploadDate values supported by the actor
     upload_date_map = {
-        'week':    'week',
-        '6months': 'month',   # actor has no 6-month option; round to month
-        'year':    'year',
+        'week':    'w',
+                '6months': 'm',         # actor has no 6-month option; round to month
+        'year':    'y',
+                        'day':     't',
+                        'month':   'm',
+                        '3months': 'm',
     }
-    upload_date = upload_date_map.get(scrape_window, 'year')
+    upload_date = upload_date_map.get(scrape_window, 'y')
     try:
         run_input = {
             "keywords":   [brand],
@@ -418,9 +421,9 @@ def fetch_youtube(brand, scrape_window='year'):
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
         )
-        client.run(run['id']).wait_for_finish()
+        client.run(run.id).wait_for_finish()
         _log(f'YouTube: run finished')
-        for item in client.dataset(run['defaultDatasetId']).iterate_items():
+                for item in client.dataset(run.default_dataset_id).iterate_items():
             text = (
                 item.get('description') or
                 item.get('title') or
@@ -466,9 +469,9 @@ def fetch_instagram(brand, scrape_window='year'):
             run_input=run_input,
             max_items=config.APIFY_MAX_RESULTS,
         )
-        client.run(run['id']).wait_for_finish()
+        client.run(run.id).wait_for_finish()
         _log(f'Instagram: run finished')
-        for item in client.dataset(run['defaultDatasetId']).iterate_items():
+        for item in client.dataset(run.default_dataset_id]).iterate_items():
             text = (
                 item.get('caption') or
                 item.get('text') or
