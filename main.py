@@ -252,7 +252,7 @@ def fetch_linkedin(brand, scrape_window='year'):
         )
         client.run(run.id).wait_for_finish()
         _log(f'LinkedIn: run finished')
-        for item in client.dataset(run.default_dataset_id]).iterate_items():
+                for item in client.dataset(run.default_dataset_id).iterate_items():
             parts = [
                 item.get('text') or '',
                 item.get('content') or '',
@@ -471,7 +471,7 @@ def fetch_instagram(brand, scrape_window='year'):
         )
         client.run(run.id).wait_for_finish()
         _log(f'Instagram: run finished')
-        for item in client.dataset(run.default_dataset_id]).iterate_items():
+                for item in client.dataset(run.default_dataset_id).iterate_items():
             text = (
                 item.get('caption') or
                 item.get('text') or
