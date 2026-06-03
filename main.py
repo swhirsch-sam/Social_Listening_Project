@@ -117,6 +117,71 @@ def _is_english(text):
     return ratio < 0.3  # >70% ASCII → likely English
 
 
+
+def _is_spam_promo(text):
+    """Return True if the post looks like a promotional spam / ad post.
+
+    Signals:
+    - Price/discount patterns  (R$, $, EUR, GBP + numbers; percentage discounts)
+    - Promo keywords           (cupom, desconto, discount, coupon, sale, shop now)
+    - Sponsored hashtags       (#ad, #anuncio, #publicidade, #sponsored)
+    - Excessive emoji density  (>25% non-ASCII characters)
+    - Hashtag spam             (5 or more hashtags)
+    - Link dump                (more than 2 bare URLs)
+    """
+    if not text:
+        return False
+    t_lower = text.lower()
+
+    # Price / discount numeric patterns
+    price_pats = [
+        r'r\$\s*\d',
+        r'\$\s*\d',
+        r'€\s*\d',
+        r'£\s*\d',
+        r'de r\s+\d',
+        r'por r\s+\d',
+        r'\d+\s*%\s*off',
+        r'\d+\s*%\s*de\s+desconto',
+        r'até\s+\d+\s*%',
+    ]
+    for pat in price_pats:
+        if re.search(pat, t_lower):
+            return True
+
+    # Promo / coupon / CTA keywords
+    promo_kws = [
+        'cupom', 'desconto', 'oferta', 'promoção', 'promocao',
+        'frete gratis', 'frete grátis', 'compre agora', 'compre já',
+        'clique aqui', 'acesse o link', 'link na bio', 'link in bio',
+        'discount code', 'promo code', 'coupon code', 'use code', 'use coupon',
+        'shop now', 'buy now', 'order now',
+        'limited time offer', 'flash sale', 'huge sale',
+        'free shipping', 'special offer', 'exclusive deal',
+    ]
+    for kw in promo_kws:
+        if kw in t_lower:
+            return True
+
+    # Sponsored / ad hashtags
+    if re.search(r'#(ad|ads|sponsored|publicidade|publi|anuncio|an\u00FAncio)\b', t_lower):
+        return True
+
+    # 5 or more hashtags = hashtag spam
+    if len(re.findall(r'#\w+', text)) >= 5:
+        return True
+
+    # High non-ASCII / emoji density > 25%
+    non_ascii = sum(1 for ch in text if ord(ch) > 127)
+    if len(text) > 0 and non_ascii / len(text) > 0.25:
+        return True
+
+    # More than 2 URLs = link dump
+    if len(re.findall(r'https?://\S+', text)) > 2:
+        return True
+
+    return False
+
 def extract_top_terms(posts, sentiment, brand, n=5):
     """Return top-n meaningful words from posts of a given sentiment.
 
@@ -184,6 +249,10 @@ def fetch_tiktok(brand, scrape_window='year'):
         for item in client.dataset(run.default_dataset_id).iterate_items():
             text = item.get('title') or item.get('text') or item.get('description') or ''
             if not text or len(text.strip()) < 15:
+                continue
+            if not _is_english(text):
+                continue
+            if _is_spam_promo(text):
                 continue
             results.append({
                 'platform': 'TikTok',
@@ -261,6 +330,10 @@ def fetch_linkedin(brand, scrape_window='year'):
             text = ' '.join(p for p in parts if p).strip()
             if not text or len(text.strip()) < 15:
                 continue
+            if not _is_english(text):
+                continue
+            if _is_spam_promo(text):
+                continue
             author_obj = item.get('author') or {}
             if isinstance(author_obj, dict):
                 author = (author_obj.get('name') or author_obj.get('fullName') or '').strip()
@@ -321,6 +394,8 @@ def fetch_twitter(brand, scrape_window='year'):
                 continue
             if not _is_english(text_val):
                 continue
+            if _is_spam_promo(text_val):
+                continue
             results.append({
                 'platform': 'Twitter/X',
                 'author': item.get('author', {}).get('userName') or item.get('username') or 'unknown',
@@ -369,6 +444,10 @@ def fetch_reddit(brand, scrape_window='year'):
             body = item.get('body') or item.get('selftext') or ''
             text = (title + ' ' + body).strip()
             if not text or len(text.strip()) < 15:
+                continue
+            if not _is_english(text):
+                continue
+            if _is_spam_promo(text):
                 continue
             results.append({
                 'platform': 'Reddit',
@@ -434,6 +513,10 @@ def fetch_youtube(brand, scrape_window='year'):
             ).strip()
             if not text or len(text) < 15:
                 continue
+            if not _is_english(text):
+                continue
+            if _is_spam_promo(text):
+                continue
             results.append({
                 'platform': 'YouTube',
                 'author':   (item.get('channelName') or item.get('channel', {}).get('name') or '').strip(),
@@ -481,6 +564,10 @@ def fetch_instagram(brand, scrape_window='year'):
                 item.get('description') or ''
             ).strip()
             if not text or len(text) < 15:
+                continue
+            if not _is_english(text):
+                continue
+            if _is_spam_promo(text):
                 continue
             owner = item.get('ownerUsername') or item.get('username') or ''
             results.append({
