@@ -181,8 +181,8 @@ def render_results(brand_name, results):
     if _summary:
         st.markdown(
             f'<div style="background:#f0f6ff;border-left:4px solid #1565c0;border-radius:8px;'
-            f'padding:14px 18px;margin:12px 0 20px 0;font-size:0.97rem;color:#0a2540;">'
-            f'<strong>🤖 AI Summary:</strong> {_summary}</div>',
+            f'padding:14px 18px;margin:12px 0 20px 0;font-size:0.82rem;color:#0a2540;line-height:1.6;">'
+            f'<span style="font-size:0.76rem;font-weight:600;color:#1565c0;text-transform:uppercase;letter-spacing:0.05em;">🤖 AI Summary</span><br><span style="font-size:0.82rem;">{_summary}</span></div>',
             unsafe_allow_html=True,
         )
 
