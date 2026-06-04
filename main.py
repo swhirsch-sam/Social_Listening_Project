@@ -104,17 +104,29 @@ def _search_query(brand):
 
 
 def _is_english(text):
-    """Return True if text appears to be English (predominantly ASCII, min 4 words).
-    Uses no external libraries — works by checking the ratio of non-ASCII characters.
+    """Return True if text is likely English.
+    Combines ASCII-ratio check with a common-word presence check.
     """
     if not text or not text.strip():
         return False
-    words = text.split()
-    if len(words) < 4:
-        return False  # too short / spam
+    words = text.lower().split()
+    if len(words) < 5:
+        return False  # too short to classify reliably
+    # Reject if more than 15% of characters are non-ASCII (stricter than before)
     non_ascii = sum(1 for ch in text if ord(ch) > 127)
-    ratio = non_ascii / len(text)
-    return ratio < 0.3  # >70% ASCII → likely English
+    if non_ascii / len(text) > 0.15:
+        return False
+    # Require at least 2 common English function/content words
+    _ENGLISH_MARKERS = {
+        'the','a','an','is','are','was','were','be','been','have','has','had',
+        'do','does','did','will','would','could','should','may','might','can',
+        'i','we','you','he','she','they','it','this','that','these','those',
+        'and','or','but','not','in','on','at','to','for','of','with','by',
+        'my','our','your','his','her','their','its','get','just','so','from',
+        'what','how','why','when','where','who','all','more','one','if','about',
+    }
+    marker_hits = sum(1 for w in words if w.strip('.,!?;:'"()[]') in _ENGLISH_MARKERS)
+    return marker_hits >= 2
 
 
 
