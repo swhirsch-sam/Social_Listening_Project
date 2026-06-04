@@ -14,7 +14,7 @@ APIFY_API_KEY     = os.environ.get("APIFY_API_KEY", "")
 
 # -- Apify actor IDs --------------------------------------------------------
 APIFY_TIKTOK_ACTOR     = "apidojo/tiktok-scraper"
-APIFY_LINKEDIN_ACTOR   = "harvestapi/linkedin-post-search"
+APIFY_LINKEDIN_ACTOR   = "supreme_coder/linkedin-post"
 APIFY_INSTAGRAM_ACTOR  = "apidojo/instagram-scraper"
 APIFY_TWITTER_ACTOR    = "kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest"
 APIFY_REDDIT_ACTOR     = "automation-lab/reddit-scraper"
