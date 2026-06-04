@@ -779,7 +779,7 @@ def run_analysis(brand, brand_hint='', scrape_window=None):
     if not all_posts:
         detail = ' | '.join(source_warnings) if source_warnings else 'No content returned.'
         return {'error': f"No data found for '{brand}'. Details: {detail}"}
-    _log('Step 5/5: Conducting sentiment analysis...')
+    _log('Running sentiment analysis...')
     analyzed = analyze_sentiment(all_posts)
     counts = {'positive': 0, 'negative': 0, 'neutral': 0}
     for post in analyzed:
