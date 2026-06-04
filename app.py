@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import sys
 import os
+import anthropic
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import main as analyze
@@ -109,6 +110,35 @@ def _ui_log_factory(log_lines, log_box):
     return _ui_log
 
 
+
+@st.cache_data(show_spinner=False)
+def generate_llm_summary(brand_name, overall, confidence, pos, neu, neg, total, top_pos_terms, top_neg_terms):
+    """Call Claude to produce a 2-3 sentence plain-English summary of sentiment results."""
+    try:
+        client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+        pos_pct = round(pos / total * 100) if total else 0
+        neg_pct = round(neg / total * 100) if total else 0
+        neu_pct = round(neu / total * 100) if total else 0
+        pos_terms_str = ', '.join(top_pos_terms[:5]) if top_pos_terms else 'N/A'
+        neg_terms_str = ', '.join(top_neg_terms[:5]) if top_neg_terms else 'N/A'
+        prompt = (
+            f"You are a brand analyst. Summarize these social media sentiment results for \"{brand_name}\" "
+            f"in 2-3 concise sentences. Highlight the key takeaway and any notable patterns.\n\n"
+            f"Overall sentiment: {overall} (confidence {confidence:.0%})\n"
+            f"Breakdown: {pos_pct}% positive, {neu_pct}% neutral, {neg_pct}% negative\n"
+            f"Total posts analysed: {total}\n"
+            f"Top positive terms: {pos_terms_str}\n"
+            f"Top negative terms: {neg_terms_str}"
+        )
+        msg = client.messages.create(
+            model="claude-opus-4-5",
+            max_tokens=150,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return msg.content[0].text
+    except Exception as e:
+        return None
+
 def render_results(brand_name, results):
     # --- error guard ---
     if results.get('error'):
@@ -134,6 +164,20 @@ def render_results(brand_name, results):
 
     # --- header ---
     st.markdown('### Overall Sentiment for **' + brand_name + '**')
+
+    # --- LLM summary ---
+    _summary = generate_llm_summary(
+        brand_name, overall, confidence, pos, neu, neg, total,
+        results.get('top_positive_terms', []),
+        results.get('top_negative_terms', []),
+    )
+    if _summary:
+        st.markdown(
+            f'<div style="background:#f0f6ff;border-left:4px solid #1565c0;border-radius:8px;'
+            f'padding:14px 18px;margin:12px 0 20px 0;font-size:0.97rem;color:#0a2540;">'
+            f'<strong>🤖 AI Summary:</strong> {_summary}</div>',
+            unsafe_allow_html=True,
+        )
 
     col_v, col_c, col_t = st.columns([2, 1, 1])
     col_v.markdown(sentiment_badge(overall), unsafe_allow_html=True)
