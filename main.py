@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Social Listening - Brand Sentiment Analyzer
-"""
+""
 
 import time
 import datetime
@@ -306,13 +306,21 @@ def fetch_linkedin(brand, scrape_window='year'):
     results = []
     query = _search_query(brand)
     try:
+        date_filter = {
+            "week": "past-week",
+            "month": "past-month",
+            "6months": "past-6months",
+            "year": "past-year",
+        }.get(scrape_window, "past-year")
+        search_url = (
+            'https://www.linkedin.com/search/results/content/?keywords='
+            + quote_plus(query)
+            + '&datePosted=' + date_filter
+        )
         run_input = {
-            "searchQueries": [query],
-            "maxPosts": config.APIFY_MAX_RESULTS,
-            "postedLimit": {"week": "week", "6months": "6months", "year": "year"}.get(scrape_window, "year"),
-            "sortBy": "relevance",
-            "scrapeReactions": False,
-            "scrapeComments": False,
+            "urls": [search_url],
+            "limitPerSource": config.APIFY_MAX_RESULTS,
+            "deepScrape": False,
         }
         _log(f"LinkedIn: starting run for '{query}'")
         run = client.actor(config.APIFY_LINKEDIN_ACTOR).start(
@@ -323,9 +331,11 @@ def fetch_linkedin(brand, scrape_window='year'):
         _log(f'LinkedIn: run finished')
         for item in client.dataset(run.default_dataset_id).iterate_items():
             parts = [
+                item.get('title') or '',
                 item.get('text') or '',
                 item.get('content') or '',
                 item.get('description') or '',
+                item.get('subtitle') or '',
             ]
             text = ' '.join(p for p in parts if p).strip()
             if not text or len(text.strip()) < 15:
@@ -334,19 +344,17 @@ def fetch_linkedin(brand, scrape_window='year'):
                 continue
             if _is_spam_promo(text):
                 continue
-            author_obj = item.get('author') or {}
-            if isinstance(author_obj, dict):
-                author = (author_obj.get('name') or author_obj.get('fullName') or '').strip()
-            else:
-                author = str(author_obj).strip()
             results.append({
                 'platform': 'LinkedIn',
-                'author': author,
+                'author': _linkedin_author(item),
                 'content': text[:500],
                 'url': (
-                    item.get('url')
-                    or item.get('postUrl')
-                    or ''
+                    item.get('postUrl')
+                    or item.get('url')
+                    or (
+                        'https://www.linkedin.com/feed/update/' + item.get('postId')
+                        if item.get('postId') else ''
+                    )
                 ),
             })
     except Exception as e:
@@ -394,7 +402,7 @@ def fetch_twitter(brand, scrape_window='year'):
                 continue
             if not _is_english(text_val):
                 continue
-            if _is_spam_promo(text_val):
+            if _is_spam_promo(text_val)
                 continue
             results.append({
                 'platform': 'Twitter/X',
