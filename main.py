@@ -125,7 +125,7 @@ def _is_english(text):
         'my','our','your','his','her','their','its','get','just','so','from',
         'what','how','why','when','where','who','all','more','one','if','about',
     }
-    marker_hits = sum(1 for w in words if w.strip('.,!?;:'"()[]') in _ENGLISH_MARKERS)
+    marker_hits = sum(1 for w in words if w.strip('.,!?;:()[]') in _ENGLISH_MARKERS)
     return marker_hits >= 2
 
 
