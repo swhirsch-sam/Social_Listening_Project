@@ -25,6 +25,8 @@ html, body, [class*="css"] { font-family: 'Inter', 'Segoe UI', sans-serif; color
 [data-testid="stSidebar"] { background-color: #0a2540; }
 [data-testid="stSidebar"] * { color: #ffffff !important; }
 [data-testid="stSidebar"] hr { border-color: #1e4a7a; }
+[data-testid="stSidebar"] { display: none; }
+[data-testid="collapsedControl"] { display: none; }
 
 /* HEADINGS */
 h1, h2, h3, h4 { color: #0a2540; }
