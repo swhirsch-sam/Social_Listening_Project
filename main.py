@@ -99,7 +99,7 @@ _STOP_WORDS = {
 
 
 def _search_query(brand):
-    """Build an exact-phrase search query so APIs don't match individual words."""
+    """Build an exact-phrase search query so APIs do not match individual words."""
     return f'"{brand}"'
 
 
