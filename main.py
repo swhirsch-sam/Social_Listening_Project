@@ -235,7 +235,7 @@ def fetch_tiktok(brand, scrape_window='year'):
         run_input = {
             "keywords": [query],
             "maxItems": config.APIFY_MAX_RESULTS,
-            "sortType": "LATEST",
+            "sortType": "RELEVANCE",
                         "dateFrom": _scrape_window_since(scrape_window),
                         "dateTo":   datetime.date.today().strftime("%Y-%m-%d"),
         }
@@ -369,7 +369,7 @@ def fetch_twitter(brand, scrape_window='year'):
         run_input = {
             "searchTerms": [query],
             "maxItems": config.APIFY_MAX_RESULTS,
-            "queryType": "Latest",
+            "queryType": "Top",
             "lang":      "en",
             "since":     _scrape_window_since(scrape_window),
             "until":     datetime.date.today().strftime('%Y-%m-%d'),
