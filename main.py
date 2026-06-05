@@ -4,7 +4,7 @@ Social Listening - Brand Sentiment Analyzer
 """
 
 import time
-import datetime
+import datetim
 import json
 import re
 import anthropic
@@ -235,7 +235,7 @@ def fetch_tiktok(brand, scrape_window='year'):
         run_input = {
             "keywords": [query],
             "maxItems": config.APIFY_MAX_RESULTS,
-            "sortType": "RELEVANCE",
+            "sortType": "LATEST",
                         "dateFrom": _scrape_window_since(scrape_window),
                         "dateTo":   datetime.date.today().strftime("%Y-%m-%d"),
         }
@@ -369,7 +369,7 @@ def fetch_twitter(brand, scrape_window='year'):
         run_input = {
             "searchTerms": [query],
             "maxItems": config.APIFY_MAX_RESULTS,
-            "queryType": "Top",
+            "queryType": "Latest",
             "lang":      "en",
             "since":     _scrape_window_since(scrape_window),
             "until":     datetime.date.today().strftime('%Y-%m-%d'),
@@ -501,7 +501,7 @@ def fetch_youtube(brand, scrape_window='year'):
         _log(f"YouTube: starting run for '{brand}'")
         run = client.actor(config.APIFY_YOUTUBE_ACTOR).start(
             run_input=run_input,
-            max_items=config.APIFY_MAX_RESULTS,
+            max_items=75  # YouTube-specific cap to avoid cost-limit abort,
         )
         client.run(run.id).wait_for_finish()
         _log(f'YouTube: run finished')
