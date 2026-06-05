@@ -4,7 +4,7 @@ Social Listening - Brand Sentiment Analyzer
 """
 
 import time
-import datetim
+import datetime
 import json
 import re
 import anthropic
@@ -501,7 +501,7 @@ def fetch_youtube(brand, scrape_window='year'):
         _log(f"YouTube: starting run for '{brand}'")
         run = client.actor(config.APIFY_YOUTUBE_ACTOR).start(
             run_input=run_input,
-            max_items=75  # YouTube-specific cap to avoid cost-limit abort,
+            max_items=config.APIFY_MAX_RESULTS,
         )
         client.run(run.id).wait_for_finish()
         _log(f'YouTube: run finished')
