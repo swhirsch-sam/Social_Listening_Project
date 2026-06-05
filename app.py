@@ -124,22 +124,17 @@ def generate_llm_summary(brand_name, overall, confidence, pos, neu, neg, total, 
         pos_terms_str = ', '.join(top_pos_terms[:5]) if top_pos_terms else 'N/A'
         neg_terms_str = ', '.join(top_neg_terms[:5]) if top_neg_terms else 'N/A'
         prompt = (
-            f"You are a senior brand intelligence analyst. Analyse these social media sentiment results for \"{brand_name}\" "
-            f"and write a structured 4-6 sentence insight report.\n\n"
-            f"Cover: (1) the overall sentiment verdict and what is driving it, "
-            f"(2) the most significant positive themes and what they signal, "
-            f"(3) any negative concerns and their potential brand impact, "
-            f"(4) a clear, actionable recommendation for the brand team.\n\n"
+            f"You are a brand analyst. Summarize these social media sentiment results for \"{brand_name}\" "
+            f"in 2-3 concise sentences. Highlight the key takeaway and any notable patterns.\n\n"
             f"Overall sentiment: {overall} (confidence {confidence:.0%})\n"
             f"Breakdown: {pos_pct}% positive, {neu_pct}% neutral, {neg_pct}% negative\n"
             f"Total posts analysed: {total}\n"
             f"Top positive terms: {pos_terms_str}\n"
-            f"Top negative terms: {neg_terms_str}\n\n"
-            f"Write in plain English, be specific, avoid generic filler phrases."
+            f"Top negative terms: {neg_terms_str}"
         )
         msg = client.messages.create(
             model="claude-opus-4-5",
-            max_tokens=400,
+            max_tokens=150,
             messages=[{"role": "user", "content": prompt}],
         )
         return msg.content[0].text
@@ -510,13 +505,15 @@ if submitted:
                 elif 'Step 2/7' in line:
                     progress_bar.progress(25)
                 elif 'Step 3/7' in line:
-                    progress_bar.progress(40)
+                    progress_bar.progress(45)
                 elif 'Step 4/7' in line:
-                    progress_bar.progress(55)
+                    progress_bar.progress(60)
                 elif 'Step 5/7' in line:
-                    progress_bar.progress(65)
+                    progress_bar.progress(64)
                 elif 'Step 6/7' in line:
-                    progress_bar.progress(80)
+                    progress_bar.progress(78)
+                elif 'Step 5/7' in line:
+                    progress_bar.progress(78)
 
             analyze.set_log_callback(progress_aware_log)
             try:
