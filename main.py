@@ -670,6 +670,8 @@ def analyze_sentiment(posts):
         return []
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
     results = []
+    total = len(posts)
+    done = 0
     chunk_size = 50  # smaller chunks = shorter JSON response = no truncation risk
     for chunk_idx, chunk_start in enumerate(range(0, len(posts), chunk_size)):
         chunk = posts[chunk_start:chunk_start + chunk_size]
@@ -706,6 +708,8 @@ def analyze_sentiment(posts):
         for i, post in enumerate(chunk):
             s = _validate_sentiment(sentiments[i]) if i < len(sentiments) else 'neutral'
             results.append({**post, 'sentiment': s})
+            done += 1
+            _log(f'__prog__ {done}/{total}')
     return results
 
 

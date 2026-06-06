@@ -495,10 +495,19 @@ if submitted:
         log_lines = []
         progress_bar = st.progress(0)
         with st.status(f'Analyzing \'{query_display}\'...', expanded=True) as status:
-            log_box      = st.empty()
-            _ui_log      = _ui_log_factory(log_lines, log_box)
+            log_box         = st.empty()
+            sent_bar_holder = st.empty()
+            sent_caption    = st.empty()
+            _ui_log         = _ui_log_factory(log_lines, log_box)
 
             def progress_aware_log(line):
+                if '__prog__' in line:
+                    m = __import__('re').search(r'__prog__\s+(\d+)/(\d+)', line)
+                    if m:
+                        done, tot = int(m.group(1)), int(m.group(2))
+                        sent_bar_holder.progress(done / tot)
+                        sent_caption.caption(f'Analyzed {done} / {tot} articles…')
+                    return
                 _ui_log(line)
                 if 'Step 1/7' in line:
                     progress_bar.progress(10)
@@ -512,12 +521,11 @@ if submitted:
                     progress_bar.progress(64)
                 elif 'Step 6/7' in line:
                     progress_bar.progress(78)
-                elif 'Step 5/7' in line:
-                    progress_bar.progress(78)
 
             analyze.set_log_callback(progress_aware_log)
             try:
                 results = analyze.run_analysis(brand_name, brand_hint, scrape_window=scrape_window_key)
+                sent_caption.empty()
                 progress_bar.progress(100)
                 status.update(
                     label=f'Done analyzing \'{query_display}\'',
