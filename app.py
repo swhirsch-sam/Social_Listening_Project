@@ -556,3 +556,12 @@ if submitted:
 # ── Render results (persists across reruns e.g. when filters change) ───────
 if st.session_state.get('results') is not None:
     render_results(st.session_state['result_brand'], st.session_state['results'])
+
+# ── Footer ────────────────────────────────────────────────────────────────
+st.markdown(
+    '<div style="text-align:center;padding:32px 0 16px 0;color:#5a85b0;font-size:0.85rem;">'
+    'Created by <strong>Sam Hirsch</strong> · '
+    '<a href="https://samhirsch.com" target="_blank" style="color:#1565c0;text-decoration:none;">samhirsch.com</a>'
+    '</div>',
+    unsafe_allow_html=True,
+)
