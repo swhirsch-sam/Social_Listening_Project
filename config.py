@@ -46,3 +46,8 @@ CLAUDE_DELAY_SECONDS  = 0.5   # seconds to pause between Claude API calls
 
 # -- LLM brand-relevance filter ---------------------------------------------
 ENABLE_BRAND_FILTER = True    # set False to skip the brand-relevance check
+
+
+# -- IP rate limiting -------------------------------------------------------
+RATE_LIMIT_MAX_RUNS    = 2     # max analysis runs allowed per IP
+RATE_LIMIT_WINDOW_HOURS = 24   # rolling window in hours

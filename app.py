@@ -7,6 +7,18 @@ import anthropic
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import main as analyze
+import rate_limiter
+from config import RATE_LIMIT_MAX_RUNS, RATE_LIMIT_WINDOW_HOURS
+
+
+def _get_client_ip() -> str:
+    try:
+        forwarded = st.context.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        return st.context.headers.get("X-Real-Ip", "local")
+    except Exception:
+        return "local"
 
 st.set_page_config(
     page_title="PulseCheck — Brand Sentiment",
@@ -491,6 +503,17 @@ if submitted:
     if not brand_name:
         st.warning('Please enter a brand name before clicking Analyze.')
     else:
+        _ip = _get_client_ip()
+        _allowed, _runs_used, _reset_in = rate_limiter.check(_ip)
+        if not _allowed:
+            _reset_hrs = _reset_in // 3600
+            _reset_mins = (_reset_in % 3600) // 60
+            st.error(
+                f"You've used all {RATE_LIMIT_MAX_RUNS} free analyses for this {RATE_LIMIT_WINDOW_HOURS}-hour window. "
+                f"Next run available in **{_reset_hrs}h {_reset_mins}m**."
+            )
+            st.stop()
+
         query_display = brand_name
         log_lines = []
         progress_bar = st.progress(0)
