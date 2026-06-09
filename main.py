@@ -256,7 +256,7 @@ def fetch_tiktok(brand, scrape_window='year'):
                 continue
             results.append({
                 'platform': 'TikTok',
-                'author': (item.get('channel') or {}).get('username') or item.get('authorMeta', {}).get('name') or 'unknown',
+                'author': (item.get('channel') or {}).get('username') or (item.get('authorMeta') or {}).get('name') or 'unknown',
                 'content': text[:500],
                 'url': (
                     item.get('postPage')
@@ -398,7 +398,7 @@ def fetch_twitter(brand, scrape_window='year'):
                 continue
             results.append({
                 'platform': 'Twitter/X',
-                'author': item.get('author', {}).get('userName') or item.get('username') or 'unknown',
+                'author': (item.get('author') or {}).get('userName') or item.get('username') or 'unknown',
                 'content': text_val[:500],
                 'url': (
                     item.get('url')
@@ -519,7 +519,7 @@ def fetch_youtube(brand, scrape_window='year'):
                 continue
             results.append({
                 'platform': 'YouTube',
-                'author':   (item.get('channelName') or item.get('channel', {}).get('name') or '').strip(),
+                'author':   (item.get('channelName') or (item.get('channel') or {}).get('name') or '').strip(),
                 'content':  text[:500],
                 'url':      item.get('url') or item.get('videoUrl') or '',
             })
@@ -626,12 +626,16 @@ def filter_brand_relevant(posts, brand, brand_hint='', batch_size=50):
             raw = response.content[0].text.strip()
             match = re.search(r'\[.*?\]', raw, re.DOTALL)
             answers = json.loads(match.group()) if match else []
-            for post, ans in zip(chunk, answers):
-                if str(ans).upper() == 'YES':
-                    relevant.append(post)
             if not answers:
-                _log(f'Brand filter: no valid JSON in response for chunk, keeping chunk')
+                _log('Brand filter: no valid JSON in response for chunk, keeping chunk')
                 relevant.extend(chunk)
+            else:
+                for idx, post in enumerate(chunk):
+                    # Fail open: if Claude returned fewer answers than posts,
+                    # keep the unanswered tail instead of silently dropping it.
+                    ans = answers[idx] if idx < len(answers) else 'YES'
+                    if str(ans).upper() == 'YES':
+                        relevant.append(post)
         except anthropic.BadRequestError as e:
             _log(f'Brand filter: content policy hit on batch, falling back to per-post filtering')
             for post in chunk:
@@ -670,7 +674,9 @@ def analyze_sentiment(posts):
         return []
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
     results = []
+    failed_chunks = 0
     chunk_size = 50  # smaller chunks = shorter JSON response = no truncation risk
+    chunk_count = (len(posts) + chunk_size - 1) // chunk_size
     for chunk_idx, chunk_start in enumerate(range(0, len(posts), chunk_size)):
         chunk = posts[chunk_start:chunk_start + chunk_size]
         post_texts = '\n'.join(
@@ -701,11 +707,17 @@ def analyze_sentiment(posts):
             if not isinstance(sentiments, list):
                 raise ValueError(f'Expected list, got {type(sentiments)}')
         except Exception as e:
+            failed_chunks += 1
             _log(f'Sentiment batch error (chunk {chunk_idx + 1}): {e} — defaulting to neutral')
             sentiments = []
         for i, post in enumerate(chunk):
             s = _validate_sentiment(sentiments[i]) if i < len(sentiments) else 'neutral'
             results.append({**post, 'sentiment': s})
+    if failed_chunks:
+        source_warnings.append(
+            f'Sentiment analysis: {failed_chunks} of {chunk_count} batches could not be '
+            f'classified and were counted as neutral — results may be skewed.'
+        )
     return results
 
 
