@@ -186,6 +186,7 @@ def render_results(brand_name, results):
     # --- pull keys using the names main.py actually returns ---
     overall     = results.get('dominant', 'neutral')
     agreement   = results.get('agreement', 0.0)
+    net         = results.get('net_sentiment', 0.0)
     total       = results.get('total', 0)
     counts      = results.get('counts', {})
     pos         = counts.get('positive', 0)
@@ -217,8 +218,18 @@ def render_results(brand_name, results):
             unsafe_allow_html=True,
         )
 
-    col_v, col_c, col_t = st.columns([2, 1, 1])
+    col_v, col_n, col_c, col_t = st.columns([2, 1, 1, 1])
     col_v.markdown(sentiment_badge(overall), unsafe_allow_html=True)
+    col_n.metric(
+        'Net Sentiment',
+        f'{net:+.0%}',
+        help=(
+            'Positive share minus negative share, from -100% (all negative) to '
+            '+100% (all positive). Shows which way sentiment leans and by how much '
+            '— it complements the dominant label, which can read "neutral" even '
+            'when there is a clear lean.'
+        ),
+    )
     col_c.metric(
         'Sentiment Agreement',
         f'{agreement:.0%}',
@@ -248,6 +259,17 @@ def render_results(brand_name, results):
         'Based on the top / most-relevant posts from each platform — a snapshot, '
         'not a representative random sample, so treat the percentages as directional.'
     )
+    _funnel = results.get('funnel', {})
+    if _funnel:
+        _f_parts = [f"{_funnel.get('collected', 0)} collected"]
+        if _funnel.get('lang_spam_dropped'):
+            _f_parts.append(f"{_funnel['lang_spam_dropped']} non-English/spam removed")
+        if _funnel.get('duplicates_dropped'):
+            _f_parts.append(f"{_funnel['duplicates_dropped']} duplicates removed")
+        if _funnel.get('off_brand_dropped'):
+            _f_parts.append(f"{_funnel['off_brand_dropped']} off-brand removed")
+        _f_parts.append(f"{_funnel.get('analyzed', 0)} analyzed")
+        st.caption('Funnel: ' + ' → '.join(_f_parts))
 
     if warnings:
         with st.expander('Source warnings'):
@@ -293,7 +315,7 @@ def render_results(brand_name, results):
             st.markdown(
                 _highlight_card(
                     _pos_posts[0] if _pos_posts else None,
-                    '#f0fff4', '#2ecc71', '#27ae60', '🟢 Most Positive',
+                    '#f0fff4', '#2ecc71', '#27ae60', '🟢 Positive Mention',
                     'No positive posts found.',
                 ),
                 unsafe_allow_html=True,
@@ -302,7 +324,7 @@ def render_results(brand_name, results):
             st.markdown(
                 _highlight_card(
                     _neg_posts[0] if _neg_posts else None,
-                    '#fff5f5', '#e74c3c', '#c0392b', '🔴 Most Negative',
+                    '#fff5f5', '#e74c3c', '#c0392b', '🔴 Negative Mention',
                     'No negative posts found.',
                 ),
                 unsafe_allow_html=True,
@@ -339,12 +361,16 @@ def render_results(brand_name, results):
     if platform_breakdown:
         rows = []
         for platform, pdata in platform_breakdown.items():
+            _pt = pdata.get('total', 0)
+            _pp = pdata.get('positive', 0)
+            _pn = pdata.get('negative', 0)
             rows.append({
                 'Platform': platform,
-                'Total':    pdata.get('total', 0),
-                'Positive': pdata.get('positive', 0),
+                'Total':    _pt,
+                'Positive': _pp,
                 'Neutral':  pdata.get('neutral', 0),
-                'Negative': pdata.get('negative', 0),
+                'Negative': _pn,
+                'Net':      f'{(_pp - _pn) / _pt:+.0%}' if _pt else '—',
             })
         plat_df = pd.DataFrame(rows).set_index('Platform')
         st.dataframe(plat_df, use_container_width=True)
@@ -397,6 +423,7 @@ def render_results(brand_name, results):
             'total':      results.get('total', 0),
             'dominant':   results.get('dominant', ''),
             'agreement': results.get('agreement', 0.0),
+            'net_sentiment': results.get('net_sentiment', 0.0),
             'counts':     results.get('counts', {}),
             'platform_breakdown': results.get('platform_breakdown', {}),
             'top_positive_terms': results.get('top_positive_terms', []),

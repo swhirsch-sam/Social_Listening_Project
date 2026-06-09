@@ -767,6 +767,7 @@ def run_analysis(brand, brand_hint='', scrape_window=None):
     total = len(analyzed)
     dominant = max(counts, key=counts.get)
     agreement = counts[dominant] / total if total else 0
+    net_sentiment = (counts['positive'] - counts['negative']) / total if total else 0
 
     platform_breakdown = {}
     for post in analyzed:
@@ -779,15 +780,25 @@ def run_analysis(brand, brand_hint='', scrape_window=None):
     top_positive = extract_top_terms(analyzed, 'positive', brand)
     top_negative = extract_top_terms(analyzed, 'negative', brand)
 
+    funnel = {
+        'collected': _before_lang,
+        'lang_spam_dropped': _lang_dropped,
+        'duplicates_dropped': _dedup_dropped,
+        'off_brand_dropped': _filter_dropped if config.ENABLE_BRAND_FILTER else 0,
+        'analyzed': total,
+    }
+
     return {
         'brand': brand,
         'total': total,
         'counts': counts,
         'dominant': dominant,
         'agreement': agreement,
+        'net_sentiment': net_sentiment,
         'posts': analyzed,
         'platform_breakdown': platform_breakdown,
         'top_positive_terms': top_positive,
         'top_negative_terms': top_negative,
+        'funnel': funnel,
         'warnings': source_warnings[:],
     }
