@@ -64,7 +64,7 @@ jobs:
           print('\n=== RESULTS ===')
           print(f'Brand: {result["brand"]}')
           print(f'Total posts analyzed: {result["total"]}')
-          print(f'Dominant sentiment: {result["dominant"]} ({result["confidence"]:.0%} confidence)')
+          print(f'Dominant sentiment: {result["dominant"]} ({result["agreement"]:.0%} agreement)')
           print(f'Positive: {result["counts"]["positive"]}')
           print(f'Negative: {result["counts"]["negative"]}')
           print(f'Neutral:  {result["counts"]["neutral"]}')

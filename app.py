@@ -126,7 +126,7 @@ def _ui_log_factory(log_lines, log_box):
 
 
 @st.cache_data(show_spinner=False)
-def generate_llm_summary(brand_name, overall, confidence, pos, neu, neg, total, top_pos_terms, top_neg_terms):
+def generate_llm_summary(brand_name, overall, agreement, pos, neu, neg, total, top_pos_terms, top_neg_terms):
     """Call Claude to produce a 2-3 sentence plain-English summary of sentiment results."""
     try:
         client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
@@ -138,7 +138,7 @@ def generate_llm_summary(brand_name, overall, confidence, pos, neu, neg, total, 
         prompt = (
             f"You are a brand analyst. Summarize these social media sentiment results for \"{brand_name}\" "
             f"in 2-3 concise sentences. Highlight the key takeaway and any notable patterns.\n\n"
-            f"Overall sentiment: {overall} (confidence {confidence:.0%})\n"
+            f"Overall sentiment: {overall} ({agreement:.0%} of posts share it)\n"
             f"Breakdown: {pos_pct}% positive, {neu_pct}% neutral, {neg_pct}% negative\n"
             f"Total posts analysed: {total}\n"
             f"Top positive terms: {pos_terms_str}\n"
@@ -161,7 +161,7 @@ def render_results(brand_name, results):
 
     # --- pull keys using the names main.py actually returns ---
     overall     = results.get('dominant', 'neutral')
-    confidence  = results.get('confidence', 0.0)
+    agreement   = results.get('agreement', 0.0)
     total       = results.get('total', 0)
     counts      = results.get('counts', {})
     pos         = counts.get('positive', 0)
@@ -181,7 +181,7 @@ def render_results(brand_name, results):
 
     # --- LLM summary ---
     _summary = generate_llm_summary(
-        brand_name, overall, confidence, pos, neu, neg, total,
+        brand_name, overall, agreement, pos, neu, neg, total,
         results.get('top_positive_terms', []),
         results.get('top_negative_terms', []),
     )
@@ -196,17 +196,18 @@ def render_results(brand_name, results):
     col_v, col_c, col_t = st.columns([2, 1, 1])
     col_v.markdown(sentiment_badge(overall), unsafe_allow_html=True)
     col_c.metric(
-        'Confidence',
-        f'{confidence:.0%}',
+        'Sentiment Agreement',
+        f'{agreement:.0%}',
         help=(
-            'The percentage of posts that matched the dominant sentiment. '
-            'e.g. 72% means 72 out of 100 posts were classified as the dominant sentiment. '
-            'A higher score = stronger, more consistent signal.'
+            'Share of posts that fall under the dominant sentiment — e.g. 72% '
+            'means 72 of 100 posts share the leading sentiment. Higher = a '
+            'stronger, more consistent signal. This is not how certain the AI is '
+            'about each post; it measures how much the posts agree.'
         ),
     )
-    if confidence >= 0.65:
+    if agreement >= 0.65:
         _sig_bg, _sig_fg, _sig_label, _sig_desc = '#d4edda', '#155724', 'Strong signal', '65%+ of posts align — strong, consistent sentiment.'
-    elif confidence >= 0.50:
+    elif agreement >= 0.50:
         _sig_bg, _sig_fg, _sig_label, _sig_desc = '#fff3cd', '#856404', 'Moderate signal', '50–65% agreement — a lean, but some mixed opinions.'
     else:
         _sig_bg, _sig_fg, _sig_label, _sig_desc = '#f8d7da', '#721c24', 'Weak signal', 'Under 50% agreement — mixed or limited data, interpret with caution.'
@@ -384,7 +385,7 @@ def render_results(brand_name, results):
             'brand':      brand_name,
             'total':      results.get('total', 0),
             'dominant':   results.get('dominant', ''),
-            'confidence': results.get('confidence', 0.0),
+            'agreement': results.get('agreement', 0.0),
             'counts':     results.get('counts', {}),
             'platform_breakdown': results.get('platform_breakdown', {}),
             'top_positive_terms': results.get('top_positive_terms', []),
@@ -521,22 +522,18 @@ if submitted:
             log_box      = st.empty()
             _ui_log      = _ui_log_factory(log_lines, log_box)
 
+            # Map each pipeline step log line to a progress-bar percentage.
+            _step_progress = {
+                'Step 1/7': 12, 'Step 2/7': 24, 'Step 3/7': 36, 'Step 4/7': 48,
+                'Step 5/7': 60, 'Step 6/7': 72, 'Step 7/7': 88,
+            }
+
             def progress_aware_log(line):
                 _ui_log(line)
-                if 'Step 1/7' in line:
-                    progress_bar.progress(10)
-                elif 'Step 2/7' in line:
-                    progress_bar.progress(25)
-                elif 'Step 3/7' in line:
-                    progress_bar.progress(45)
-                elif 'Step 4/7' in line:
-                    progress_bar.progress(60)
-                elif 'Step 5/7' in line:
-                    progress_bar.progress(64)
-                elif 'Step 6/7' in line:
-                    progress_bar.progress(78)
-                elif 'Step 5/7' in line:
-                    progress_bar.progress(78)
+                for _marker, _pct in _step_progress.items():
+                    if _marker in line:
+                        progress_bar.progress(_pct)
+                        break
 
             analyze.set_log_callback(progress_aware_log)
             try:

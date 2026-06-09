@@ -759,14 +759,14 @@ def run_analysis(brand, brand_hint='', scrape_window=None):
     if not all_posts:
         detail = ' | '.join(source_warnings) if source_warnings else 'No content returned.'
         return {'error': f"No data found for '{brand}'. Details: {detail}"}
-    _log('Step 5/5: Conducting sentiment analysis...')
+    _log('Step 7/7: Conducting sentiment analysis...')
     analyzed = analyze_sentiment(all_posts)
     counts = {'positive': 0, 'negative': 0, 'neutral': 0}
     for post in analyzed:
         counts[post['sentiment']] = counts.get(post['sentiment'], 0) + 1
     total = len(analyzed)
     dominant = max(counts, key=counts.get)
-    confidence = counts[dominant] / total if total else 0
+    agreement = counts[dominant] / total if total else 0
 
     platform_breakdown = {}
     for post in analyzed:
@@ -784,7 +784,7 @@ def run_analysis(brand, brand_hint='', scrape_window=None):
         'total': total,
         'counts': counts,
         'dominant': dominant,
-        'confidence': confidence,
+        'agreement': agreement,
         'posts': analyzed,
         'platform_breakdown': platform_breakdown,
         'top_positive_terms': top_positive,
