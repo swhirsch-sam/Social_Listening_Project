@@ -40,7 +40,8 @@ SCRAPE_WINDOW = "year"
 
 
 # -- Claude model & rate-limit ----------------------------------------------
-CLAUDE_MODEL          = "claude-haiku-4-5"
+CLAUDE_MODEL          = "claude-haiku-4-5"   # sentiment + brand-relevance classification
+SUMMARY_MODEL         = "claude-sonnet-4-6"  # short natural-language results summary
 CLAUDE_DELAY_SECONDS  = 0.5   # seconds to pause between Claude API calls
 
 

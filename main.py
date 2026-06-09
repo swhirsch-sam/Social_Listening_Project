@@ -10,7 +10,6 @@ import re
 import anthropic
 from collections import Counter
 from apify_client import ApifyClient
-from urllib.parse import quote_plus
 import config
 
 source_warnings = []
@@ -245,7 +244,7 @@ def fetch_tiktok(brand, scrape_window='year'):
             max_items=config.APIFY_MAX_RESULTS,
         )
         client.run(run.id).wait_for_finish()
-        _log(f'TikTok: run finished')
+        _log('TikTok: run finished')
         for item in client.dataset(run.default_dataset_id).iterate_items():
             text = item.get('title') or item.get('text') or item.get('description') or ''
             if not text or len(text.strip()) < 15:
@@ -320,7 +319,7 @@ def fetch_linkedin(brand, scrape_window='year'):
             max_items=config.APIFY_MAX_RESULTS,
         )
         client.run(run.id).wait_for_finish()
-        _log(f'LinkedIn: run finished')
+        _log('LinkedIn: run finished')
         for item in client.dataset(run.default_dataset_id).iterate_items():
             parts = [
                 item.get('text') or '',
@@ -380,7 +379,7 @@ def fetch_twitter(brand, scrape_window='year'):
             max_items=config.APIFY_MAX_RESULTS,
         )
         client.run(run.id).wait_for_finish()
-        _log(f'Twitter/X: run finished')
+        _log('Twitter/X: run finished')
         for item in client.dataset(run.default_dataset_id).iterate_items():
             parts = [
                 item.get('text') or '',
@@ -438,7 +437,7 @@ def fetch_reddit(brand, scrape_window='year'):
             max_items=config.APIFY_MAX_RESULTS,
         )
         client.run(run.id).wait_for_finish()
-        _log(f'Reddit: run finished')
+        _log('Reddit: run finished')
         for item in client.dataset(run.default_dataset_id).iterate_items():
             title = item.get('title') or ''
             body = item.get('body') or item.get('selftext') or ''
@@ -504,7 +503,7 @@ def fetch_youtube(brand, scrape_window='year'):
             max_items=config.APIFY_MAX_RESULTS,
         )
         client.run(run.id).wait_for_finish()
-        _log(f'YouTube: run finished')
+        _log('YouTube: run finished')
         for item in client.dataset(run.default_dataset_id).iterate_items():
             text = (
                 item.get('description') or
@@ -556,7 +555,7 @@ def fetch_instagram(brand, scrape_window='year'):
             max_items=config.APIFY_MAX_RESULTS,
         )
         client.run(run.id).wait_for_finish()
-        _log(f'Instagram: run finished')
+        _log('Instagram: run finished')
         for item in client.dataset(run.default_dataset_id).iterate_items():
             text = (
                 item.get('caption') or
@@ -636,8 +635,8 @@ def filter_brand_relevant(posts, brand, brand_hint='', batch_size=50):
                     ans = answers[idx] if idx < len(answers) else 'YES'
                     if str(ans).upper() == 'YES':
                         relevant.append(post)
-        except anthropic.BadRequestError as e:
-            _log(f'Brand filter: content policy hit on batch, falling back to per-post filtering')
+        except anthropic.BadRequestError:
+            _log('Brand filter: content policy hit on batch, falling back to per-post filtering')
             for post in chunk:
                 snippet = str(post.get('content', ''))[:300]
                 single_prompt = (

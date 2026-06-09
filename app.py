@@ -9,7 +9,7 @@ import anthropic
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import main as analyze
 import rate_limiter
-from config import RATE_LIMIT_MAX_RUNS, RATE_LIMIT_WINDOW_HOURS
+from config import RATE_LIMIT_MAX_RUNS, RATE_LIMIT_WINDOW_HOURS, SUMMARY_MODEL, ANTHROPIC_API_KEY
 
 
 def _get_client_ip() -> str:
@@ -153,7 +153,7 @@ def _ui_log_factory(log_lines, log_box):
 def generate_llm_summary(brand_name, overall, agreement, pos, neu, neg, total, top_pos_terms, top_neg_terms):
     """Call Claude to produce a 2-3 sentence plain-English summary of sentiment results."""
     try:
-        client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         pos_pct = round(pos / total * 100) if total else 0
         neg_pct = round(neg / total * 100) if total else 0
         neu_pct = round(neu / total * 100) if total else 0
@@ -169,12 +169,12 @@ def generate_llm_summary(brand_name, overall, agreement, pos, neu, neg, total, t
             f"Top negative terms: {neg_terms_str}"
         )
         msg = client.messages.create(
-            model="claude-opus-4-5",
+            model=SUMMARY_MODEL,
             max_tokens=150,
             messages=[{"role": "user", "content": prompt}],
         )
         return msg.content[0].text
-    except Exception as e:
+    except Exception:
         return None
 
 def render_results(brand_name, results):
