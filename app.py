@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import sys
 import os
+import html
 import anthropic
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -117,6 +118,29 @@ def sentiment_badge(sentiment):
     )
 
 
+def _highlight_card(post, bg, border, title_color, title, empty_msg):
+    """Render one highlight card with all scraped text HTML-escaped to prevent injection."""
+    if post:
+        content = html.escape((post.get('content') or '')[:280]) or '—'
+        meta = html.escape(post.get('platform') or '') + ' · ' + html.escape(post.get('author') or '')
+        url = post.get('url') or ''
+        link = ''
+        if url.startswith(('http://', 'https://')):
+            link = f'  <a href="{html.escape(url, quote=True)}" target="_blank" rel="noopener noreferrer">View post</a>'
+        body = (
+            f'<div style="font-size:0.9rem;color:#0d1117">{content}</div>'
+            f'<div style="margin-top:8px;font-size:0.78rem;color:#555">{meta}{link}</div>'
+        )
+    else:
+        body = f'<div style="color:#555;font-size:0.9rem">{empty_msg}</div>'
+    return (
+        f'<div style="background:{bg};border-left:4px solid {border};'
+        f'border-radius:8px;padding:14px 16px;min-height:110px">'
+        f'<div style="font-weight:700;color:{title_color};margin-bottom:6px">{title}</div>'
+        f'{body}</div>'
+    )
+
+
 def _ui_log_factory(log_lines, log_box):
     def _ui_log(line):
         log_lines.append(__import__('re').sub(r'^\[\d\d:\d\d:\d\d\] ', '', line))
@@ -220,6 +244,11 @@ def render_results(brand_name, results):
     col_c.caption(_sig_desc)
     col_t.metric('Posts Analyzed', total)
 
+    st.caption(
+        'Based on the top / most-relevant posts from each platform — a snapshot, '
+        'not a representative random sample, so treat the percentages as directional.'
+    )
+
     if warnings:
         with st.expander('Source warnings'):
             for w in warnings:
@@ -262,38 +291,20 @@ def render_results(brand_name, results):
         _h_col1, _h_col2 = st.columns(2)
         with _h_col1:
             st.markdown(
-                '<div style="background:#f0fff4;border-left:4px solid #2ecc71;'
-                'border-radius:8px;padding:14px 16px;min-height:110px">'
-                '<div style="font-weight:700;color:#27ae60;margin-bottom:6px">🟢 Most Positive</div>'
-                + (
-                    '<div style="font-size:0.9rem;color:#0d1117">'
-                    + (_pos_posts[0].get('content','')[:280] or '—')
-                    + '</div>'
-                    '<div style="margin-top:8px;font-size:0.78rem;color:#555">'
-                    + _pos_posts[0].get('platform','') + ' · ' + _pos_posts[0].get('author','')
-                    + ('  <a href="' + _pos_posts[0].get('url','') + '" target="_blank">View post</a>' if _pos_posts[0].get('url') else '')
-                    + '</div>'
-                    if _pos_posts else '<div style="color:#555;font-size:0.9rem">No positive posts found.</div>'
-                )
-                + '</div>',
+                _highlight_card(
+                    _pos_posts[0] if _pos_posts else None,
+                    '#f0fff4', '#2ecc71', '#27ae60', '🟢 Most Positive',
+                    'No positive posts found.',
+                ),
                 unsafe_allow_html=True,
             )
         with _h_col2:
             st.markdown(
-                '<div style="background:#fff5f5;border-left:4px solid #e74c3c;'
-                'border-radius:8px;padding:14px 16px;min-height:110px">'
-                '<div style="font-weight:700;color:#c0392b;margin-bottom:6px">🔴 Most Negative</div>'
-                + (
-                    '<div style="font-size:0.9rem;color:#0d1117">'
-                    + (_neg_posts[0].get('content','')[:280] or '—')
-                    + '</div>'
-                    '<div style="margin-top:8px;font-size:0.78rem;color:#555">'
-                    + _neg_posts[0].get('platform','') + ' · ' + _neg_posts[0].get('author','')
-                    + ('  <a href="' + _neg_posts[0].get('url','') + '" target="_blank">View post</a>' if _neg_posts[0].get('url') else '')
-                    + '</div>'
-                    if _neg_posts else '<div style="color:#555;font-size:0.9rem">No negative posts found.</div>'
-                )
-                + '</div>',
+                _highlight_card(
+                    _neg_posts[0] if _neg_posts else None,
+                    '#fff5f5', '#e74c3c', '#c0392b', '🔴 Most Negative',
+                    'No negative posts found.',
+                ),
                 unsafe_allow_html=True,
             )
 
