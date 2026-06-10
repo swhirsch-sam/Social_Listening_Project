@@ -145,7 +145,7 @@ def generate_llm_summary(brand_name, overall, confidence, pos, neu, neg, total, 
             f"Top negative terms: {neg_terms_str}"
         )
         msg = client.messages.create(
-            model="claude-opus-4-5",
+            model="claude-opus-4-8",
             max_tokens=150,
             messages=[{"role": "user", "content": prompt}],
         )

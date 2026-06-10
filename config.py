@@ -40,7 +40,7 @@ SCRAPE_WINDOW = "year"
 
 
 # -- Claude model & rate-limit ----------------------------------------------
-CLAUDE_MODEL          = "claude-haiku-4-5"
+CLAUDE_MODEL          = "claude-sonnet-4-6"
 CLAUDE_DELAY_SECONDS  = 0.5   # seconds to pause between Claude API calls
 
 
