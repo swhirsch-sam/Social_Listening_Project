@@ -6,10 +6,10 @@ name: Keep Streamlit Awake
 
 on:
   schedule:
-    # Runs at 00:00, 10:00 and 20:00 UTC -> never more than 10 hours asleep.
+    # Runs every 8 hours, at 00:00, 08:00 and 16:00 UTC.
     # Note: GitHub may delay scheduled runs under load, and it disables
     # scheduled workflows after 60 days of no repo activity.
-    - cron: "0 0,10,20 * * *"
+    - cron: "0 */8 * * *"
   workflow_dispatch:
     inputs:
       app_url:
@@ -47,7 +47,7 @@ jobs:
           # To hardcode instead of using the variable, put the URL in DEFAULT.
           INPUT_URL="${{ github.event.inputs.app_url }}"
           VAR_URL="${{ vars.STREAMLIT_APP_URL }}"
-          DEFAULT=""
+          DEFAULT="https://brandpulsecheck.streamlit.app/"
           URL="${INPUT_URL:-${VAR_URL:-$DEFAULT}}"
           if [ -z "$URL" ]; then
             echo "::error::No app URL. Set the repository variable STREAMLIT_APP_URL (Settings -> Secrets and variables -> Actions -> Variables) or run manually with an app_url input."
