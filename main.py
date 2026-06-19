@@ -233,11 +233,11 @@ def fetch_tiktok(brand, scrape_window='year'):
     query = _search_query(brand)
     try:
         run_input = {
-            "keywords": [query],
-            "maxItems": config.APIFY_MAX_RESULTS,
-            "sortType": "RELEVANCE",
-                        "dateFrom": _scrape_window_since(scrape_window),
-                        "dateTo":   datetime.date.today().strftime("%Y-%m-%d"),
+            "searchQueries": [query],
+            "resultsPerPage": config.APIFY_MAX_RESULTS,
+            "searchSection": "/video",
+            "oldestPostDateUnified": _scrape_window_since(scrape_window),
+            "newestPostDateUnified": datetime.date.today().strftime("%Y-%m-%d"),
         }
         _log(f"TikTok: starting run for '{query}'")
         run = client.actor(config.APIFY_TIKTOK_ACTOR).start(
@@ -309,10 +309,9 @@ def fetch_linkedin(brand, scrape_window='year'):
         run_input = {
             "searchQueries": [query],
             "maxPosts": config.APIFY_MAX_RESULTS,
-            "postedLimit": {"week": "week", "6months": "6months", "year": "year"}.get(scrape_window, "year"),
+            "postedLimit": {"week": "week", "month": "month", "3months": "3months",
+                            "6months": "6months", "year": "year"}.get(scrape_window, "year"),
             "sortBy": "relevance",
-            "scrapeReactions": False,
-            "scrapeComments": False,
         }
         _log(f"LinkedIn: starting run for '{query}'")
         run = client.actor(config.APIFY_LINKEDIN_ACTOR).start(
@@ -344,7 +343,8 @@ def fetch_linkedin(brand, scrape_window='year'):
                 'author': author,
                 'content': text[:500],
                 'url': (
-                    item.get('url')
+                    item.get('linkedinUrl')
+                    or item.get('url')
                     or item.get('postUrl')
                     or ''
                 ),
@@ -715,18 +715,14 @@ def run_analysis(brand, brand_hint='', scrape_window=None):
     all_posts = []
     window = scrape_window or config.SCRAPE_WINDOW
     _log(f'Scrape window: {window}')
-    _log('Step 1/7: TikTok')
+    _log('Step 1/5: TikTok')
     all_posts.extend(fetch_tiktok(brand, window))
-    _log('Step 2/7: LinkedIn')
+    _log('Step 2/5: LinkedIn')
     all_posts.extend(fetch_linkedin(brand, window))
-    _log('Step 3/7: Twitter/X')
+    _log('Step 3/5: Twitter/X')
     all_posts.extend(fetch_twitter(brand, window))
-    _log('Step 4/7: Reddit')
+    _log('Step 4/5: Reddit')
     all_posts.extend(fetch_reddit(brand, window))
-    _log('Step 5/7: YouTube')
-    all_posts.extend(fetch_youtube(brand, window))
-    _log('Step 6/7: Instagram')
-    all_posts.extend(fetch_instagram(brand, window))
     _log(f'Fetching complete: {len(all_posts)} posts')
     # --- English / spam filter ---
     _before_lang = len(all_posts)

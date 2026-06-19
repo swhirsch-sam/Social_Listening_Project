@@ -359,7 +359,7 @@ def render_results(brand_name, results):
 
     # --- source coverage strip ---
     st.markdown('### Source Coverage')
-    sources = ['TikTok', 'LinkedIn', 'Twitter/X', 'Reddit', 'YouTube', 'Instagram']
+    sources = ['TikTok', 'LinkedIn', 'Twitter/X', 'Reddit']
     cov_cols = st.columns(len(sources))
     for i, src in enumerate(sources):
         found = platform_breakdown.get(src, {}).get('total', 0)
@@ -408,7 +408,7 @@ def render_results(brand_name, results):
     all_posts = [p for p in all_posts if isinstance(p, dict)]
 
     # Build platform groups
-    platform_names = ['TikTok', 'LinkedIn', 'Twitter/X', 'Reddit', 'YouTube', 'Instagram']
+    platform_names = ['TikTok', 'LinkedIn', 'Twitter/X', 'Reddit']
     platform_posts = {pl: [p for p in all_posts if (p.get('platform') or '') == pl]
                       for pl in platform_names}
 
@@ -457,7 +457,7 @@ if 'result_brand' not in st.session_state:
 st.title('📡 PulseCheck')
 st.caption('Brand Sentiment Intelligence')
 st.markdown(
-    'Enter a brand name to scrape TikTok, LinkedIn, Twitter/X, Reddit, YouTube, and Instagram '
+    'Enter a brand name to scrape TikTok, LinkedIn, Twitter/X, and Reddit '
             'for mentions from the past calendar year and determine overall sentiment.'
 )
 st.divider()

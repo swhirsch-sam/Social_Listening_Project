@@ -13,8 +13,8 @@ APIFY_API_KEY     = os.environ.get("APIFY_API_KEY", "")
 
 
 # -- Apify actor IDs --------------------------------------------------------
-APIFY_TIKTOK_ACTOR     = "apidojo/tiktok-scraper"
-APIFY_LINKEDIN_ACTOR   = "supreme_coder/linkedin-post"
+APIFY_TIKTOK_ACTOR     = "clockworks/tiktok-scraper"        # uncapped pay-per-result (~$1.70/1k)
+APIFY_LINKEDIN_ACTOR   = "harvestapi/linkedin-post-search"  # no-cookies keyword search (~$2/1k)
 APIFY_INSTAGRAM_ACTOR  = "apidojo/instagram-scraper"
 APIFY_TWITTER_ACTOR    = "kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest"
 APIFY_REDDIT_ACTOR     = "automation-lab/reddit-scraper"
@@ -24,14 +24,14 @@ APIFY_YOUTUBE_ACTOR    = "apidojo/youtube-scraper"
 # -- Source toggles ---------------------------------------------------------
 ENABLE_TIKTOK     = True
 ENABLE_LINKEDIN   = True
-ENABLE_INSTAGRAM  = True  # requires Apify paid plan (Free plan = 10-item demo mode only)
+ENABLE_INSTAGRAM  = False  # disabled: apidojo actor caps at 10-item demo; low text-signal for sentiment
 ENABLE_TWITTER    = True
 ENABLE_REDDIT     = True
-ENABLE_YOUTUBE    = True  # requires Apify paid plan (Free plan = 10-item demo mode only)
+ENABLE_YOUTUBE    = False  # disabled: apidojo actor caps at 10-item demo; low text-signal for sentiment
 
 
 # -- Scraping limits (per source, per run) ----------------------------------
-APIFY_MAX_RESULTS = 150        # max items per Apify actor run
+APIFY_MAX_RESULTS = 100        # max items per Apify actor run (keeps a 4-source run ~$0.51, under the $0.60 budget)
 
 
 # -- Time-range window for scrapers -----------------------------------------
