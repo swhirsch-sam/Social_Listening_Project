@@ -523,20 +523,16 @@ if submitted:
 
             def progress_aware_log(line):
                 _ui_log(line)
-                if 'Step 1/7' in line:
-                    progress_bar.progress(10)
-                elif 'Step 2/7' in line:
-                    progress_bar.progress(25)
-                elif 'Step 3/7' in line:
-                    progress_bar.progress(45)
-                elif 'Step 4/7' in line:
-                    progress_bar.progress(60)
-                elif 'Step 5/7' in line:
-                    progress_bar.progress(64)
-                elif 'Step 6/7' in line:
-                    progress_bar.progress(78)
-                elif 'Step 5/7' in line:
-                    progress_bar.progress(78)
+                if 'Step 1/5' in line:
+                    progress_bar.progress(15)
+                elif 'Step 2/5' in line:
+                    progress_bar.progress(35)
+                elif 'Step 3/5' in line:
+                    progress_bar.progress(55)
+                elif 'Step 4/5' in line:
+                    progress_bar.progress(75)
+                elif 'Step 5/5' in line:
+                    progress_bar.progress(90)
 
             analyze.set_log_callback(progress_aware_log)
             try:
