@@ -224,6 +224,65 @@ def _scrape_window_since(scrape_window):
     return (datetime.date.today() - datetime.timedelta(days=days)).strftime('%Y-%m-%d')
 
 
+def _coerce_post_date(val):
+    """Coerce a scraped timestamp value into a 'YYYY-MM-DD' string, or None."""
+    if val is None or isinstance(val, bool):
+        return None
+    if isinstance(val, dict):
+        for k in ('date', 'timestamp', 'iso', 'value'):
+            if val.get(k) is not None:
+                return _coerce_post_date(val[k])
+        return None
+    if isinstance(val, (int, float)):
+        ts = float(val)
+        if ts > 1e12:            # milliseconds -> seconds
+            ts /= 1000.0
+        if ts <= 0:
+            return None
+        try:
+            return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime('%Y-%m-%d')
+        except (ValueError, OSError, OverflowError):
+            return None
+    if isinstance(val, str):
+        s = val.strip()
+        if not s:
+            return None
+        if s.isdigit():
+            return _coerce_post_date(int(s))
+        try:                                        # ISO-8601 (tolerate trailing Z)
+            return datetime.datetime.fromisoformat(s.replace('Z', '+00:00')).strftime('%Y-%m-%d')
+        except ValueError:
+            pass
+        try:                                        # leading YYYY-MM-DD
+            return datetime.datetime.strptime(s[:10], '%Y-%m-%d').strftime('%Y-%m-%d')
+        except ValueError:
+            pass
+        try:                                        # Twitter style: "Wed Oct 10 20:19:24 +0000 2018"
+            return datetime.datetime.strptime(s, '%a %b %d %H:%M:%S %z %Y').strftime('%Y-%m-%d')
+        except ValueError:
+            pass
+    return None
+
+
+def _parse_post_date(item):
+    """Best-effort extract of a post's publish date as 'YYYY-MM-DD' from a raw Apify
+    item, across the timestamp fields the actors here use. Returns None when no
+    recognizable date is found (callers treat None as fail-open)."""
+    if not isinstance(item, dict):
+        return None
+    for key in (
+        'createdAt', 'created_at', 'created', 'createdUtc', 'created_utc',
+        'postedAt', 'postedAtISO', 'postedDate', 'datePosted', 'date',
+        'publishedAt', 'published_at', 'publishedOn', 'timestamp',
+        'taken_at', 'takenAt', 'createTimeISO', 'createTime', 'time',
+    ):
+        if key in item:
+            d = _coerce_post_date(item.get(key))
+            if d:
+                return d
+    return None
+
+
 def fetch_tiktok(brand, scrape_window='year'):
     global source_warnings
     if not config.ENABLE_TIKTOK:
@@ -287,7 +346,8 @@ def fetch_threads(brand, scrape_window='year'):
     input; the per-run result cap is enforced by the platform-level max_items option
     (same mechanism every other scraper here relies on), which bounds cost even though
     the actor's internal max field name is not documented. scrape_window is unused: the
-    actor has no documented date filter, so we take recent/top search results.
+    actor has no documented date filter, so the requested window is enforced
+    after fetch via the 'published' field (see the date cutoff in run_analysis).
     """
     global source_warnings
     if not config.ENABLE_THREADS:
@@ -344,6 +404,7 @@ def fetch_threads(brand, scrape_window='year'):
                 'platform': 'Threads',
                 'author': author,
                 'content': text[:500],
+                'published': _parse_post_date(item),
                 'url': url,
             })
     except Exception as e:
@@ -383,8 +444,9 @@ def fetch_linkedin(brand, scrape_window='year'):
         run_input = {
             "searchQueries": [query],
             "maxPosts": config.APIFY_MAX_RESULTS,
-            "postedLimit": {"week": "week", "month": "month", "3months": "3months",
-                            "6months": "6months", "year": "year"}.get(scrape_window, "year"),
+            "postedLimit": {"day": "24h", "week": "week", "month": "month",
+                            "3months": "3months", "6months": "6months",
+                            "year": "year"}.get(scrape_window, "year"),
             "sortBy": "relevance",
         }
         _log(f"LinkedIn: starting run for '{query}'")
@@ -416,6 +478,7 @@ def fetch_linkedin(brand, scrape_window='year'):
                 'platform': 'LinkedIn',
                 'author': author,
                 'content': text[:500],
+                'published': _parse_post_date(item),
                 'url': (
                     item.get('linkedinUrl')
                     or item.get('url')
@@ -474,6 +537,7 @@ def fetch_twitter(brand, scrape_window='year'):
                 'platform': 'Twitter/X',
                 'author': item.get('author', {}).get('userName') or item.get('username') or 'unknown',
                 'content': text_val[:500],
+                'published': _parse_post_date(item),
                 'url': (
                     item.get('url')
                     or item.get('tweetUrl')
@@ -503,7 +567,9 @@ def fetch_reddit(brand, scrape_window='year'):
             "searchQuery": query,
             "maxPostsPerSource": config.APIFY_MAX_RESULTS,
             "sort": "relevance",
-            "timeFilter": "week" if scrape_window == "week" else "year",
+            "timeFilter": {"day": "day", "week": "week", "month": "month",
+                           "3months": "year", "6months": "year",
+                           "year": "year"}.get(scrape_window, "year"),
             "includeComments": False,
         }
         _log(f"Reddit: starting run for '{query}'")
@@ -527,6 +593,7 @@ def fetch_reddit(brand, scrape_window='year'):
                 'platform': 'Reddit',
                 'author': item.get('author') or 'unknown',
                 'content': text[:500],
+                'published': _parse_post_date(item),
                 'url': (
                     (
                         'https://www.reddit.com' + item.get('permalink')
@@ -798,6 +865,16 @@ def run_analysis(brand, brand_hint='', scrape_window=None):
     _log('Step 4/5: Reddit')
     all_posts.extend(fetch_reddit(brand, window))
     _log(f'Fetching complete: {len(all_posts)} posts')
+    # --- Date-window cutoff: drop posts published before the requested window ---
+    # Native per-actor filters handle Twitter/LinkedIn/Reddit at the source; this
+    # backstop enforces the window uniformly (incl. Threads, which has no native
+    # filter). Posts with no parseable date are kept (fail-open).
+    _cutoff = _scrape_window_since(window)  # 'YYYY-MM-DD'
+    _before_date = len(all_posts)
+    all_posts = [p for p in all_posts if (p.get('published') or _cutoff) >= _cutoff]
+    _date_dropped = _before_date - len(all_posts)
+    if _date_dropped:
+        _log(f'Date filter: dropped {_date_dropped} posts older than {_cutoff}; {len(all_posts)} remain')
     # --- English / spam filter ---
     _before_lang = len(all_posts)
     all_posts = [p for p in all_posts if _is_english(p.get('content', ''))]
