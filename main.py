@@ -279,6 +279,80 @@ def fetch_tiktok(brand, scrape_window='year'):
     return results
 
 
+def fetch_threads(brand, scrape_window='year'):
+    """Fetch Threads (Meta) posts mentioning the brand via automation-lab/threads-scraper.
+
+    Threads is text-first, so posts survive the English/spam filter at a much higher
+    rate than video-caption sources. Keyword search uses the documented `searchQuery`
+    input; the per-run result cap is enforced by the platform-level max_items option
+    (same mechanism every other scraper here relies on), which bounds cost even though
+    the actor's internal max field name is not documented. scrape_window is unused: the
+    actor has no documented date filter, so we take recent/top search results.
+    """
+    global source_warnings
+    if not config.ENABLE_THREADS:
+        return []
+    client = ApifyClient(config.APIFY_API_KEY)
+    results = []
+    query = _search_query(brand)
+    try:
+        run_input = {
+            "searchQuery": query,
+        }
+        _log(f"Threads: starting run for '{query}'")
+        run = client.actor(config.APIFY_THREADS_ACTOR).start(
+            run_input=run_input,
+            max_items=config.APIFY_MAX_RESULTS,
+        )
+        client.run(run.id).wait_for_finish()
+        _log('Threads: run finished')
+        for item in client.dataset(run.default_dataset_id).iterate_items():
+            # text: flattened `text`, else nested caption.text, else caption string
+            cap = item.get('caption')
+            text = (
+                item.get('text')
+                or (cap.get('text') if isinstance(cap, dict) else cap)
+                or item.get('content')
+                or ''
+            )
+            text = (text or '').strip()
+            if not text or len(text) < 15:
+                continue
+            if not _is_english(text):
+                continue
+            if _is_spam_promo(text):
+                continue
+            # author: flattened `username`, else nested user/author username
+            user = item.get('user') or item.get('author') or {}
+            author = (
+                item.get('username')
+                or item.get('ownerUsername')
+                or (user.get('username') if isinstance(user, dict) else (user if isinstance(user, str) else ''))
+                or 'unknown'
+            )
+            # url: flattened field, else build from username + post code/shortcode
+            code = item.get('code') or item.get('shortcode') or item.get('pk') or ''
+            url = (
+                item.get('url')
+                or item.get('postUrl')
+                or item.get('permalink')
+                or item.get('threadUrl')
+                or (f'https://www.threads.net/@{author}/post/{code}'
+                    if code and author and author != 'unknown' else '')
+            )
+            results.append({
+                'platform': 'Threads',
+                'author': author,
+                'content': text[:500],
+                'url': url,
+            })
+    except Exception as e:
+        source_warnings.append(f'Threads: {e}')
+        _log(f'Threads: ERROR {e}')
+    _log(f'Threads: collected {len(results)} items')
+    return results
+
+
 def _linkedin_author(item):
     """Extract author name from a linkedin-post Apify actor result item."""
     # Top-level flat field used by supreme_coder/linkedin-post
@@ -715,8 +789,8 @@ def run_analysis(brand, brand_hint='', scrape_window=None):
     all_posts = []
     window = scrape_window or config.SCRAPE_WINDOW
     _log(f'Scrape window: {window}')
-    _log('Step 1/5: TikTok')
-    all_posts.extend(fetch_tiktok(brand, window))
+    _log('Step 1/5: Threads')
+    all_posts.extend(fetch_threads(brand, window))
     _log('Step 2/5: LinkedIn')
     all_posts.extend(fetch_linkedin(brand, window))
     _log('Step 3/5: Twitter/X')
