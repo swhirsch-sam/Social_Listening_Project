@@ -283,61 +283,6 @@ def _parse_post_date(item):
     return None
 
 
-def fetch_tiktok(brand, scrape_window='year'):
-    global source_warnings
-    if not config.ENABLE_TIKTOK:
-        return []
-    client = ApifyClient(config.APIFY_API_KEY)
-    results = []
-    query = _search_query(brand)
-    try:
-        run_input = {
-            "searchQueries": [query],
-            "resultsPerPage": config.APIFY_MAX_RESULTS,
-            "searchSection": "/video",
-            "oldestPostDateUnified": _scrape_window_since(scrape_window),
-            "newestPostDateUnified": datetime.date.today().strftime("%Y-%m-%d"),
-        }
-        _log(f"TikTok: starting run for '{query}'")
-        run = client.actor(config.APIFY_TIKTOK_ACTOR).start(
-            run_input=run_input,
-            max_items=config.APIFY_MAX_RESULTS,
-        )
-        client.run(run.id).wait_for_finish()
-        _log(f'TikTok: run finished')
-        for item in client.dataset(run.default_dataset_id).iterate_items():
-            text = item.get('title') or item.get('text') or item.get('description') or ''
-            if not text or len(text.strip()) < 15:
-                continue
-            if not _is_english(text):
-                continue
-            if _is_spam_promo(text):
-                continue
-            results.append({
-                'platform': 'TikTok',
-                'author': (item.get('channel') or {}).get('username') or item.get('authorMeta', {}).get('name') or 'unknown',
-                'content': text[:500],
-                'url': (
-                    item.get('postPage')
-                    or item.get('webVideoUrl')
-                    or item.get('videoUrl')
-                    or item.get('url')
-                    or (
-                        'https://www.tiktok.com/@'
-                        + str((item.get('channel') or {}).get('username') or item.get('authorMeta', {}).get('name') or 'unknown')
-                        + '/video/'
-                        + str(item.get('id') or '')
-                        if item.get('id') else ''
-                    )
-                ),
-            })
-    except Exception as e:
-        source_warnings.append(f'TikTok: {e}')
-        _log(f'TikTok: ERROR {e}')
-    _log(f'TikTok: collected {len(results)} items')
-    return results
-
-
 def fetch_threads(brand, scrape_window='year'):
     """Fetch Threads (Meta) posts mentioning the brand via automation-lab/threads-scraper.
 
