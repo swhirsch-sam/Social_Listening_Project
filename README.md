@@ -1,13 +1,13 @@
 # Social Listening MVP
 
-Pulls brand mentions from **Threads** (Apify), **LinkedIn** (Apify), and **web/news** (Firecrawl), runs each item through **Claude** for sentiment analysis + key-topic extraction, and writes every result into a **Google Sheet**.
+Pulls brand mentions from **TikTok** (Apify), **LinkedIn** (Apify), and **web/news** (Firecrawl), runs each item through **Claude** for sentiment analysis + key-topic extraction, and writes every result into a **Google Sheet**.
 
 ---
 
 ## Architecture
 
 ```
-Apify  (automation-lab/threads-scraper)       ──┐
+Apify  (clockworks/tiktok-scraper)            ──┐
 Apify  (supreme_coder/linkedin-post)           ──┼──► main.py ──► Claude API ──► Google Sheets
 Firecrawl (web/news search)                    ──┘
 ```
@@ -69,7 +69,7 @@ python main.py
 | Setting | Default | Description |
 |---|---|---|
 | `BRAND_KEYWORDS` | `[]` | Terms to search across all sources |
-| `ENABLE_THREADS` | `True` | Toggle Threads scraper |
+| `ENABLE_TIKTOK` | `True` | Toggle TikTok scraper |
 | `ENABLE_LINKEDIN` | `True` | Toggle LinkedIn scraper |
 | `ENABLE_FIRECRAWL` | `True` | Toggle web/news search |
 | `APIFY_MAX_RESULTS` | `50` | Items per Apify run |
