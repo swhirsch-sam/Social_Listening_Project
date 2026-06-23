@@ -23,8 +23,8 @@ APIFY_YOUTUBE_ACTOR    = "apidojo/youtube-scraper"
 
 
 # -- Source toggles ---------------------------------------------------------
-ENABLE_THREADS    = True
-ENABLE_TIKTOK     = False  # disabled: replaced by Threads (video captions lost ~70% to the English/spam filter)
+ENABLE_THREADS    = False
+ENABLE_TIKTOK     = True
 ENABLE_LINKEDIN   = True
 ENABLE_INSTAGRAM  = False  # disabled: apidojo actor caps at 10-item demo; low text-signal for sentiment
 ENABLE_TWITTER    = True
