@@ -13,8 +13,9 @@ APIFY_API_KEY     = os.environ.get("APIFY_API_KEY", "")
 
 
 # -- Apify actor IDs --------------------------------------------------------
-APIFY_TIKTOK_ACTOR     = "clockworks/tiktok-scraper"        # disabled; replaced by Threads (~70% lost to filter at ~$3.75/1k)
+APIFY_TIKTOK_ACTOR     = "clockworks/tiktok-scraper"        # disabled; video captions lost ~70% to English/spam filter at ~$3.75/1k
 APIFY_THREADS_ACTOR    = "automation-lab/threads-scraper"   # text-first keyword search (~$1/1k, high filter survival)
+APIFY_BLUESKY_ACTOR    = "automation-lab/bluesky-scraper"   # text-first keyword search via AT Protocol (~$1/1k)
 APIFY_LINKEDIN_ACTOR   = "harvestapi/linkedin-post-search"  # no-cookies keyword search (~$2/1k)
 APIFY_INSTAGRAM_ACTOR  = "apidojo/instagram-scraper"
 APIFY_TWITTER_ACTOR    = "kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest"
@@ -23,8 +24,9 @@ APIFY_YOUTUBE_ACTOR    = "apidojo/youtube-scraper"
 
 
 # -- Source toggles ---------------------------------------------------------
-ENABLE_THREADS    = False
-ENABLE_TIKTOK     = True
+ENABLE_THREADS    = True
+ENABLE_BLUESKY    = True
+ENABLE_TIKTOK     = False  # disabled: video captions lost ~70% to English/spam filter
 ENABLE_LINKEDIN   = True
 ENABLE_INSTAGRAM  = False  # disabled: apidojo actor caps at 10-item demo; low text-signal for sentiment
 ENABLE_TWITTER    = True
