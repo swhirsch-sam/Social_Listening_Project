@@ -35,7 +35,7 @@ ENABLE_YOUTUBE    = False  # disabled: apidojo actor caps at 10-item demo; low t
 
 
 # -- Scraping limits (per source, per run) ----------------------------------
-APIFY_MAX_RESULTS = 100        # max items per Apify actor run (keeps a 4-source run ~$0.51, under the $0.60 budget)
+APIFY_MAX_RESULTS = 100        # max items per Apify actor run (5-source run: Threads ~$0.10 + Bluesky ~$0.10 + LinkedIn ~$0.20 + Twitter ~$0.10 + Reddit ~$0.10 ≈ $0.60)
 
 
 # -- Time-range window for scrapers -----------------------------------------

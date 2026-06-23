@@ -458,7 +458,7 @@ st.title('📡 PulseCheck')
 st.caption('Brand Sentiment Intelligence')
 st.markdown(
     'Enter a brand name to scrape Threads, Bluesky, LinkedIn, Twitter/X, and Reddit '
-            'for mentions from the past calendar year and determine overall sentiment.'
+            'for mentions across your selected time window and determine overall sentiment.'
 )
 st.divider()
 
