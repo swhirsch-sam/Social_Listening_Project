@@ -358,6 +358,8 @@ def fetch_threads(brand, scrape_window='year'):
     try:
         run_input = {
             "searchQuery": query,
+            "maxResults": config.APIFY_MAX_RESULTS,
+            "sort": "recent",
         }
         _log(f"Threads: starting run for '{query}'")
         run = client.actor(config.APIFY_THREADS_ACTOR).start(
